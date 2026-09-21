@@ -4,25 +4,42 @@ import { normalize } from './db.js';
 /**
  * استخراج المهام بالقواعد — بدون Claude وبدون أي تكلفة.
  *
- * الفرق الجوهري عن التصنيف الذكي: هذا الوضع لا يفهم السياق، فهو لا يقرأ
- * كل رسائل القروب بحثًا عن مهام ضمنية. يشتغل على مبدأ ضيق ومتعمّد:
- * الرسالة لازم تكون **موجّهة لك** (منشن، أو رد على رسالتك، أو نداء باسمك)
- * **و** فيها **إشارة طلب** واضحة. بغير هذين الشرطين معًا يتحوّل لمولّد ضجيج.
+ * المبدأ: أغلب مهام قروبات العمل تُطلب من الجميع بلا تخصيص («لازم نرفع
+ * الدرجات قبل الخميس»)، والمهام المخصصة بالاسم نادرة. لذلك القاعدة هي
+ * **الالتقاط الواسع**: أي رسالة فيها إشارة طلب تُعتبر مهمة عليك —
+ * إلا إذا كانت موجّهة صراحةً لشخص آخر، فتُستبعد.
+ *
+ * النداء باسمك لا يُشترط؛ هو فقط يرفع نسبة الثقة.
  */
 
-/** أفعال وصيغ الطلب الشائعة في قروبات العمل بالعامية والفصحى. */
-const REQUEST_SIGNALS = [
-  // صيغ الطلب المباشرة
-  'مطلوب', 'الرجاء', 'رجاء', 'ارجو', 'تكفي', 'لو سمحت', 'ممكن', 'بليز',
-  'محتاج', 'نحتاج', 'لازم', 'ضروري', 'يلزم', 'عليك', 'عليكم', 'مهمتك',
-  // أفعال أمر متكررة
-  'جهز', 'حضر', 'ارفع', 'ارسل', 'راجع', 'اعتمد', 'احجز', 'اكتب', 'وقع',
-  'سلم', 'اكمل', 'تاكد', 'تابع', 'رد', 'جاوب', 'شارك', 'عدل', 'صحح',
-  'انهي', 'ابدا', 'نسق', 'حدد', 'اضف', 'احذف', 'ارفق', 'نزل', 'حمل',
-  // مواعيد والتزامات
-  'موعد', 'تسليم', 'ديدلاين', 'اخر موعد', 'قبل', 'تذكير', 'تنبيه',
-  'باقي', 'متبقي', 'ما تنسى', 'لا تنسى', 'تذكر',
+/**
+ * إشارات قوية: صيغ طلب لا تحتمل معنى آخر. وجودها وحده يكفي.
+ */
+const STRONG_SIGNALS = [
+  'مطلوب', 'الرجاء', 'رجاء', 'ارجو', 'تكفي', 'لو سمحت', 'بليز', 'ممكن',
+  'محتاج', 'نحتاج', 'لازم', 'ضروري', 'يلزم', 'مهمتك', 'المطلوب منك',
+  'موعد', 'تسليم', 'ديدلاين', 'اخر موعد', 'تذكير', 'تنبيه',
+  'ما تنسى', 'لا تنسى', 'لا تنسون', 'ما تنسون', 'الحضور', 'الاطلاع',
 ];
+
+/**
+ * أفعال الطلب. تُطابق عند بداية الكلمة، لكن **تُستبعد صيغ الماضي**:
+ * «أرسلت التعميم» خبر لا طلب، بينما «أرسل التعميم» طلب. القاعدة لا تفهم
+ * الزمن، فنستدل عليه بلاحقات الماضي (ت، تُم، نا، وا).
+ */
+const VERB_SIGNALS = [
+  'جهز', 'حضر', 'ارفع', 'ارسل', 'راجع', 'اعتمد', 'احجز', 'اكتب', 'وقع',
+  'سلم', 'اكمل', 'تاكد', 'تابع', 'جاوب', 'شارك', 'عدل', 'صحح', 'وافق',
+  'انهي', 'ابدا', 'نسق', 'حدد', 'اضف', 'احذف', 'ارفق', 'نزل', 'حمل',
+  'املا', 'عبي', 'اطلع', 'احضر', 'الرد', 'ردك',
+  // صيغ الجمع والمضارع — «ترفعون»، «نرفع»
+  'ترفعون', 'ترسلون', 'تجهزون', 'تراجعون', 'تكملون', 'تعبون', 'تعبئون',
+  'تحضرون', 'تسلمون', 'تعتمدون', 'تتاكدون', 'تطلعون', 'تنسون',
+  'نرفع', 'نرسل', 'نجهز', 'نراجع', 'نكمل', 'نسلم', 'نعتمد', 'نحضر',
+];
+
+/** لواحق تدل على أن الفعل ماضٍ فلا يكون طلبًا. */
+const PAST_SUFFIXES = ['ت', 'تم', 'تها', 'ته', 'نا', 'وا', 'ها'];
 
 /** إشارات استعجال ترفع الأولوية إلى urgent. */
 const URGENT_SIGNALS = [
@@ -37,14 +54,52 @@ const HIGH_SIGNALS = ['مهم', 'موعد', 'تسليم', 'ديدلاين', 'ا�
 const NOISE_SIGNALS = [
   'شكرا', 'مشكور', 'يعطيك العافيه', 'تسلم', 'الله يعافيك', 'ابشر',
   'تم بالفعل', 'خلاص تم', 'وصل', 'مبروك', 'حياك', 'اهلا', 'مرحبا',
-  'صباح الخير', 'مساء الخير', 'جزاك الله',
+  'صباح الخير', 'مساء الخير', 'جزاك الله', 'السلام عليكم', 'سلام عليكم',
+  'وعليكم السلام', 'هلا', 'يا هلا', 'تحياتي', 'بالتوفيق', 'الله يوفقكم',
+  'كل عام', 'عساكم', 'تقبل الله',
+];
+
+/**
+ * ألقاب تسبق اسم الشخص. لو صدّرت الرسالة لقبًا متبوعًا باسم ليس اسمك،
+ * فالطلب لذلك الشخص لا لك.
+ */
+const HONORIFICS = [
+  'د', 'دكتور', 'دكتوره', 'ا', 'أ', 'استاذ', 'استاذه', 'م', 'مهندس',
+  'مهندسه', 'شيخ', 'كابتن', 'بروفيسور', 'عميد', 'رئيس',
 ];
 
 const AR_WEEKDAYS = {
   الاحد: 0, الاثنين: 1, الثلاثاء: 2, الاربعاء: 3, الخميس: 4, الجمعه: 5, السبت: 6,
 };
 
-const has = (haystack, needles) => needles.some((n) => haystack.includes(normalize(n)));
+/**
+ * مطابقة عند بداية الكلمة لا في أي موضع منها.
+ * المطابقة الجزئية الحرة تُنتج إيجابيات كاذبة كثيرة: «رد» تطابق «موارد»
+ * و«بارد»، و«سلم» تطابق «مسلم». نسمح بالسوابق العربية الشائعة (ال، و، ب، ل)
+ * فتبقى «الرد» و«وارفع» ملتقطة، وبلاحقات الكلمة كما هي.
+ */
+const AR_PREFIX = '(?:و|ف|ب|ل|ك)?(?:ال)?';
+
+function has(haystack, needles) {
+  const padded = ` ${haystack} `;
+  return needles.some((raw) => {
+    const n = normalize(raw).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    if (!n) return false;
+    return new RegExp(`(?:^|\\s)${AR_PREFIX}${n}`, 'u').test(padded);
+  });
+}
+
+/** يطابق فعل طلب في صيغة غير ماضية. */
+function hasVerb(haystack) {
+  const padded = ` ${haystack} `;
+  return VERB_SIGNALS.some((raw) => {
+    const n = normalize(raw).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const m = padded.match(new RegExp(`(?:^|\\s)${AR_PREFIX}(${n}\\S*)`, 'u'));
+    if (!m) return false;
+    const suffix = m[1].slice(normalize(raw).length);
+    return !PAST_SUFFIXES.includes(suffix);
+  });
+}
 
 /** يضيف أيامًا إلى تاريخ YYYY-MM-DD دون التأثر بالمناطق الزمنية. */
 function addDays(isoDate, n) {
@@ -124,15 +179,21 @@ function toTitle(raw, myNames) {
   for (let i = 0; i < 4; i++) {
     const before = cleaned;
 
+    // «يا» تفتح موضع نداء، فما بعدها اسم لا كلمة عادية
+    const hadVocative = /^(?:يا|ياا)\s+/u.test(cleaned);
     cleaned = cleaned.replace(/^(?:يا|ياا)\s+/u, '');
 
     for (const name of myNames) {
-      const re = new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*[،,:]?\\s*`, 'u');
+      const n = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      // بلا نداء سابق، لا نقشّر الاسم إلا إذا تبعته فاصلة — وإلا قد يكون
+      // «أحد» بمعنى «شخص ما» فنبتر جزءًا من الطلب نفسه
+      const re = hadVocative
+        ? new RegExp(`^${n}\\s*[،,:]?\\s*`, 'u')
+        : new RegExp(`^${n}\\s*[،,:]\\s*`, 'u');
       cleaned = cleaned.replace(re, '');
     }
     for (const p of TITLE_PREFIXES) {
-      const re = new RegExp(`^${p}\\s*[،,:]?\\s*`, 'u');
-      cleaned = cleaned.replace(re, '');
+      cleaned = cleaned.replace(new RegExp(`^${p}\\s*[،,:]?\\s*`, 'u'), '');
     }
 
     if (cleaned === before) break;
@@ -154,6 +215,59 @@ function toTitle(raw, myNames) {
 const extraSignals = config.ruleKeywords;
 
 /**
+ * هل نودي المستخدم باسمه؟ نشترط **موضع نداء** لا مجرد ورود الاسم، لأن
+ * أسماء مثل «أحد» و«أمل» و«سند» كلمات عربية شائعة: «ممكن أحد يراجع الخطة»
+ * ليست نداءً لأحد. مواضع النداء: «يا أحد» / «د. أحد» / «أحد،» / أول الرسالة.
+ */
+function calledByName(text, myNames) {
+  const padded = ` ${text} `;
+  return myNames.some((name) => {
+    const n = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const honorifics = HONORIFICS.join('|');
+    return (
+      new RegExp(`(?:^|\\s)يا\\s+(?:(?:${honorifics})\\s+)?${n}(?:\\s|$)`, 'u').test(padded) ||
+      new RegExp(`(?:^|\\s)(?:${honorifics})\\s+${n}(?:\\s|$)`, 'u').test(padded) ||
+      new RegExp(`^${n}\\s`, 'u').test(text) ||
+      name.length >= 5 // اسم طويل مميّز لا يلتبس بكلمة عادية
+    ) && padded.includes(` ${name} `);
+  });
+}
+
+/**
+ * هل الرسالة موجّهة صراحةً لشخص آخر؟ إشارتان:
+ *   ١. اسم زميل من OTHER_NAMES ورد في النص.
+ *   ٢. الرسالة تبدأ بنداء «يا …» أو بلقب متبوع باسم ليس اسمك.
+ * ما عدا ذلك تُعامل كطلب جماعي — وهو الغالب في قروبات العمل.
+ */
+function addressedToOther(text, myNames) {
+  const others = config.otherNames.map(normalize).filter((n) => n.length >= 2);
+  if (others.some((n) => text.includes(n))) return true;
+
+  const padded = ` ${text} `;
+  const isMine = (token) => myNames.some((n) => n === token || n.includes(token) || token.includes(n));
+
+  // «يا خالد ...» — الكلمة التالية للنداء اسم شخص
+  const vocative = text.match(/^يا\s+(\S+)(?:\s+(\S+))?/u);
+  if (vocative) {
+    const [, first, second] = vocative;
+    if (HONORIFICS.includes(first)) return second ? !isMine(second) : false;
+    return !isMine(first);
+  }
+
+  // «د. خالد ...» أو «أستاذ سارة ...» في أول الرسالة
+  const titled = text.match(/^(\S+)\s+(\S+)/u);
+  if (titled && HONORIFICS.includes(titled[1])) return !isMine(titled[2]);
+
+  // ورود لقب متبوع باسم في أي موضع: «ترسلها لـ د. خالد»
+  for (const h of HONORIFICS) {
+    const m = padded.match(new RegExp(`\\s${h}\\s+(\\S+)\\s`, 'u'));
+    if (m && !isMine(m[1])) return true;
+  }
+
+  return false;
+}
+
+/**
  * يصنّف دفعة رسائل بالقواعد. نفس شكل مخرجات classifyBatch تمامًا،
  * حتى يقدر الـ pipeline يبدّل بين الوضعين بدون أي فرق في التعامل.
  */
@@ -172,14 +286,15 @@ export function extractByRules({ messages }) {
 
     if (has(text, NOISE_SIGNALS) && text.length < 60) return;
 
-    // الشرط الأول: هل الرسالة موجّهة لك؟
-    const byName = myNames.some((n) => text.includes(n));
-    const addressed = msg.isMention || msg.quotedFromMe || byName;
-    if (!addressed) return;
-
-    // الشرط الثاني: هل فيها إشارة طلب؟
-    const requested = has(text, REQUEST_SIGNALS) || has(text, extraSignals);
+    // الشرط الوحيد للالتقاط: فيها إشارة طلب.
+    const requested = has(text, STRONG_SIGNALS) || hasVerb(text) || has(text, extraSignals);
     if (!requested) return;
+
+    const byName = calledByName(text, myNames);
+    const toMe = msg.isMention || msg.quotedFromMe || byName;
+
+    // الاستبعاد الوحيد: موجّهة صراحةً لشخص آخر — إلا لو كنت مذكورًا معه.
+    if (!toMe && addressedToOther(text, myNames)) return;
 
     const due = extractDue(text, raw);
 
@@ -188,10 +303,11 @@ export function extractByRules({ messages }) {
     else if (due && (due.date === today() || due.date === addDays(today(), 1))) priority = 'urgent';
     else if (has(text, HIGH_SIGNALS) || due) priority = 'high';
 
-    // الثقة تعكس قوة الإشارة: المنشن الصريح أقوى من ورود الاسم في النص
-    let confidence = 0.6;
+    // الثقة تعكس قوة الإشارة: الموجّه لك باسمك أقوى من الطلب الجماعي
+    let confidence = 0.6; // طلب جماعي بلا تخصيص — الحالة الغالبة
     if (msg.isMention) confidence = 0.8;
-    else if (msg.quotedFromMe) confidence = 0.7;
+    else if (msg.quotedFromMe) confidence = 0.75;
+    else if (byName) confidence = 0.7;
     if (due) confidence += 0.05;
     confidence = Math.min(confidence, 0.85); // القواعد لا تبلغ يقين التصنيف الذكي
 

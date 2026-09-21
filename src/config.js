@@ -28,6 +28,7 @@ export const config = {
   ruleKeywords: list(process.env.RULE_KEYWORDS),
 
   myNames: list(process.env.MY_NAMES),
+  otherNames: list(process.env.OTHER_NAMES),
   myNumber: (process.env.MY_NUMBER || '').replace(/\D/g, ''),
 
   groupJids: list(process.env.GROUP_JIDS),
