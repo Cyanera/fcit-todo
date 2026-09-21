@@ -23,6 +23,10 @@ const STRONG_SIGNALS = [
   // المصادر: كثيرًا ما يُصاغ الطلب اسمًا لا فعلًا — «تعبئة هذا الرابط»
   'تعبئه', 'تجهيز', 'مراجعه', 'اعتماد', 'تحديث', 'ارسال', 'استكمال',
   'تسجيل', 'ترشيح', 'توقيع', 'اعداد', 'رفع الدرجات', 'التسجيل',
+  // الإنجليزية — كثير من تعاميم الجامعة والقروبات المهنية تأتي بها
+  'please', 'kindly', 'required', 'needed', 'must', 'deadline', 'due date',
+  'reminder', 'dont forget', 'do not forget', 'asap', 'make sure',
+  'we need', 'you need', 'is due', 'no later than',
 ];
 
 /**
@@ -51,6 +55,11 @@ const VERB_SIGNALS = [
   // صيغة الغائب بعد فاعل جماعة: «الجميع يرفع الدرجات»
   'يرفع', 'يرسل', 'يجهز', 'يراجع', 'يحضر', 'يسلم', 'يعتمد', 'يكمل',
   'يعبي', 'يطلع', 'يشارك', 'يحجز', 'يكتب', 'يوقع', 'يضيف', 'يتاكد',
+  // أفعال الطلب بالإنجليزية
+  'send', 'submit', 'upload', 'review', 'prepare', 'complete', 'fill',
+  'sign', 'book', 'share', 'update', 'confirm', 'attend', 'register',
+  'approve', 'attach', 'download', 'finish', 'provide', 'reply',
+  'schedule', 'arrange', 'coordinate', 'verify', 'check',
 ];
 
 /** لواحق تدل على أن الفعل ماضٍ فلا يكون طلبًا. */
@@ -60,10 +69,14 @@ const PAST_SUFFIXES = ['ت', 'تم', 'تها', 'ته', 'نا', 'وا', 'ها'];
 const URGENT_SIGNALS = [
   'عاجل', 'ضروري', 'مستعجل', 'بسرعه', 'بسرعة', 'اليوم', 'الحين', 'حالا',
   'فورا', 'الان', 'قبل نهايه اليوم', 'مهم جدا',
+  'urgent', 'asap', 'today', 'immediately', 'right now', 'very important',
 ];
 
 /** إشارات تُعلي الأولوية إلى high دون أن تجعلها عاجلة. */
-const HIGH_SIGNALS = ['مهم', 'موعد', 'تسليم', 'ديدلاين', 'اخر موعد', 'العماده', 'الرئيس', 'المدير'];
+const HIGH_SIGNALS = [
+  'مهم', 'موعد', 'تسليم', 'ديدلاين', 'اخر موعد', 'العماده', 'الرئيس', 'المدير',
+  'important', 'deadline', 'due', 'dean', 'director',
+];
 
 /** عبارات تنفي أن تكون الرسالة طلبًا — شكر ومجاملات وردود قصيرة. */
 const NOISE_SIGNALS = [
@@ -72,6 +85,9 @@ const NOISE_SIGNALS = [
   'صباح الخير', 'مساء الخير', 'جزاك الله', 'السلام عليكم', 'سلام عليكم',
   'وعليكم السلام', 'هلا', 'يا هلا', 'تحياتي', 'بالتوفيق', 'الله يوفقكم',
   'كل عام', 'عساكم', 'تقبل الله',
+  // الإنجليزية
+  'thanks', 'thank you', 'good morning', 'good evening', 'hello', 'hi ',
+  'welcome', 'congrats', 'congratulations', 'well done', 'noted', 'ok ',
 ];
 
 /**
@@ -153,6 +169,21 @@ function extractDue(normalized, raw) {
   const padded = ` ${normalized} `;
   const word = (w) => padded.includes(` ${w} `);
 
+  const EN_WEEKDAYS = {
+    sunday: 0, monday: 1, tuesday: 2, wednesday: 3,
+    thursday: 4, friday: 5, saturday: 6,
+  };
+  for (const [name, target] of Object.entries(EN_WEEKDAYS)) {
+    if (!word(name)) continue;
+    const current = new Date(`${base}T12:00:00Z`).getUTCDay();
+    let diff = (target - current + 7) % 7;
+    if (diff === 0) diff = 7;
+    return { date: addDays(base, diff), text: name };
+  }
+  if (word('day after tomorrow')) return { date: addDays(base, 2), text: 'بعد بكرة' };
+  if (word('tomorrow')) return { date: addDays(base, 1), text: 'بكرة' };
+  if (word('today')) return { date: base, text: 'اليوم' };
+
   if (word('بعد بكره') || word('بعد غد')) {
     return { date: addDays(base, 2), text: 'بعد بكرة' };
   }
@@ -197,11 +228,64 @@ const TITLE_PREFIXES = [
   'تكفى', 'تكفي', 'تكفين', 'تكفون', 'لو سمحت', 'لو سمحتِ', 'لو سمحتي',
   'لو تكرمت', 'لو تكرمتي', 'من فضلك', 'من فضلكِ', 'الرجاء', 'رجاء',
   'ارجو', 'أرجو', 'ممكن', 'بليز', 'اذا ممكن', 'إذا ممكن', 'عفوا', 'عفوًا',
+  'please', 'kindly', 'pls', 'plz', 'could you', 'can you', 'would you',
+  'reminder', 'note', 'fyi',
 ];
 
 /**
+ * عبارات الموعد والاستعجال في ذيل الطلب. تُقصّ من العنوان لأن اللوحة
+ * تعرضهما في شريحتين مستقلتين، فتكرارهما في العنوان حشو يطمس المطلوب.
+ */
+const TAIL_NOISE = [
+  'عاجلا', 'عاجل', 'ضروري', 'بسرعة', 'بسرعه', 'حالا', 'فورا', 'الحين',
+  'الان', 'باسرع وقت', 'بأسرع وقت', 'اليوم', 'بكرة', 'بكره', 'غدا', 'غدًا',
+  'بعد بكرة', 'بعد بكره', 'نهاية الاسبوع', 'نهاية الأسبوع', 'هذا الاسبوع',
+  'asap', 'urgent', 'today', 'tomorrow', 'immediately', 'right now',
+  'this week', 'next week',
+];
+
+/** يحوّل كلمة إلى نمط يتسامح مع اختلاف الهمزة والتاء المربوطة. */
+function tolerant(word) {
+  return word
+    .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    .replace(/[اأإآ]/g, '[اأإآ]')
+    .replace(/[هة]/g, '[هة]')
+    .replace(/[يى]/g, '[يى]')
+    .replace(/\s+/g, '\\s+');
+}
+
+/** يقصّ عبارات الموعد والاستعجال من ذيل العنوان. */
+function trimTail(text) {
+  let out = text;
+  for (let i = 0; i < 4; i++) {
+    const before = out;
+    out = out.replace(/[\s،,:;.!؟-]+$/u, '');
+
+    // «قبل يوم الخميس» / «before Thursday» — الموعد بشرطه
+    out = out.replace(
+      /\s+(?:قبل|بحلول|before|by|due\s+on|no\s+later\s+than)\s+\S+(?:\s+\S+)?$/iu,
+      '',
+    );
+
+    for (const w of TAIL_NOISE) {
+      out = out.replace(new RegExp(`\\s+${tolerant(w)}$`, 'iu'), '');
+    }
+
+    // أداة ربط معلّقة بعد قصّ الموعد: «deadline for grades is»
+    out = out.replace(
+      /\s+(?:is|are|was|were|will\s+be|on|by|at|in|to|for|في|على|الى|إلى|يوم)$/iu,
+      '',
+    );
+
+    if (out === before) break;
+  }
+  // لو القصّ أفنى الطلب، نُبقي الأصل
+  return out.trim().length >= 6 ? out.trim() : text;
+}
+
+/**
  * عنوان مختصر من نص الرسالة. القواعد ما تقدر تعيد الصياغة مثل النموذج،
- * لكنها تقدر تشيل النداء والمجاملة من البداية فيبان الطلب نفسه أولًا.
+ * لكنها تقدر تشيل النداء والمجاملة والموعد فيبان المطلوب وحده.
  */
 function toTitle(raw, myNames) {
   let cleaned = raw
@@ -228,13 +312,13 @@ function toTitle(raw, myNames) {
     }
     for (const p of TITLE_PREFIXES) {
       // (?=\s|[،,:]|$) يمنع قشر «تكفي» من داخل «تكفين» فيبقى حرف شارد
-      cleaned = cleaned.replace(new RegExp(`^${p}(?=\\s|[،,:]|$)\\s*[،,:]?\\s*`, 'u'), '');
+      cleaned = cleaned.replace(new RegExp(`^${p}(?=\\s|[،,:]|$)\\s*[،,:]?\\s*`, 'iu'), '');
     }
 
     if (cleaned === before) break;
   }
 
-  cleaned = cleaned.replace(/^[،,:\s-]+/, '').trim();
+  cleaned = trimTail(cleaned.replace(/^[،,:\s-]+/, '').trim());
   // لو القشر أكل الجملة كلها، نرجع للنص الأصلي
   if (cleaned.length < 8) cleaned = raw.replace(/@\d+/g, '').replace(/\s+/g, ' ').trim();
 

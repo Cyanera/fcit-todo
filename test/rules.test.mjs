@@ -151,6 +151,48 @@ test('يتجاهل رسائلك أنت إلا بتفعيل INCLUDE_OWN_MESSAGES'
   }
 });
 
+test('يلتقط الرسائل الإنجليزية', () => {
+  for (const body of [
+    'Please send the report before Thursday',
+    'Kindly fill this form today',
+    'Reminder: deadline for grades is tomorrow',
+    'All faculty must submit the course plan',
+  ]) {
+    assert.ok(run(body), `كان المفروض تُلتقط: ${body}`);
+  }
+  for (const body of ['Thanks everyone', 'Good morning', 'Congratulations!']) {
+    assert.equal(run(body), null, `ضجيج إنجليزي: ${body}`);
+  }
+});
+
+test('يفهم مواعيد الإنجليزية', () => {
+  const today = new Intl.DateTimeFormat('en-CA', {
+    timeZone: process.env.TZ || 'Asia/Riyadh',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(new Date());
+  const tomorrow = new Date(`${today}T12:00:00Z`);
+  tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+
+  assert.equal(run('Please submit the form today').due_date, today);
+  assert.equal(run('Please submit the form tomorrow').due_date, tomorrow.toISOString().slice(0, 10));
+  assert.ok(run('Please submit the form before Thursday').due_date, 'أسماء الأيام بالإنجليزية');
+});
+
+test('العنوان يحمل المطلوب وحده بلا موعد ولا استعجال', () => {
+  // الموعد والأولوية معروضان في شرائح مستقلة، فتكرارهما في العنوان حشو
+  assert.equal(run('ارسل الصور قبل يوم الخميس').title, 'ارسل الصور');
+  assert.equal(run('جيب المقاضي من البقالة اليوم').title, 'جيب المقاضي من البقالة');
+  assert.equal(run('تعبئة هذا الرابط عاجلا :').title, 'تعبئة هذا الرابط');
+  assert.equal(run('Please send the report before Thursday').title, 'send the report');
+  assert.equal(run('Kindly fill this form today').title, 'fill this form');
+});
+
+test('لا يقصّ العنوان حتى يفقد معناه', () => {
+  // لو لم يبقَ من الطلب إلا أحرف قليلة، نُبقي النص الأصلي
+  const t = run('ارسل اليوم');
+  if (t) assert.ok(t.title.length >= 6, `عنوان مبتور: "${t.title}"`);
+});
+
 test('يحوّل المواعيد النسبية إلى تواريخ فعلية', () => {
   const today = new Intl.DateTimeFormat('en-CA', {
     timeZone: process.env.TZ || 'Asia/Riyadh',
