@@ -11,6 +11,7 @@ import makeWASocket, {
 import qrcode from 'qrcode-terminal';
 import pino from 'pino';
 import { config } from './config.js';
+import { installSendGuard } from './guard.js';
 
 const logger = pino({ level: 'silent' });
 
@@ -80,6 +81,11 @@ export class WhatsAppClient extends EventEmitter {
       syncFullHistory: false,
       getMessage: async () => undefined,
     });
+
+    // يُركَّب قبل أي مستمع أحداث: من هذه اللحظة لا يمكن لأي شيفرة
+    // — حالية أو مستقبلية — أن ترسل إلى قروب أو إلى أي شخص آخر.
+    installSendGuard(this.sock, () => this.selfJid);
+    console.log('🔒 حارس الإرسال مفعّل: القروبات والأشخاص محظورون، والمسموح محادثتك مع نفسك فقط.');
 
     this.sock.ev.on('creds.update', saveCreds);
     this.sock.ev.on('connection.update', (u) => this.#onConnection(u));
