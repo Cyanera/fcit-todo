@@ -65,6 +65,12 @@ export function normalize(text) {
     .toLowerCase();
 }
 
+// ترحيل: عمود يميّز المهام المضافة يدويًا عن المستخرجة من القروب.
+const taskColumns = db.prepare('PRAGMA table_info(tasks)').all().map((c) => c.name);
+if (!taskColumns.includes('source')) {
+  db.exec(`ALTER TABLE tasks ADD COLUMN source TEXT NOT NULL DEFAULT 'whatsapp'`);
+}
+
 const stmts = {
   insertMessage: db.prepare(`
     INSERT OR IGNORE INTO messages (id, chat_jid, chat_name, sender_jid, sender_name, body, ts)
@@ -76,9 +82,11 @@ const stmts = {
     ORDER BY ts DESC LIMIT ?`),
   insertTask: db.prepare(`
     INSERT INTO tasks (message_id, chat_jid, chat_name, title, norm_title, details, requester,
-                       due_date, due_text, priority, confidence, source_text, source_ts, created_at)
+                       due_date, due_text, priority, confidence, source_text, source_ts,
+                       created_at, source)
     VALUES (@message_id, @chat_jid, @chat_name, @title, @norm_title, @details, @requester,
-            @due_date, @due_text, @priority, @confidence, @source_text, @source_ts, @created_at)`),
+            @due_date, @due_text, @priority, @confidence, @source_text, @source_ts,
+            @created_at, @source)`),
   findDuplicate: db.prepare(`
     SELECT id FROM tasks
     WHERE norm_title = ? AND status = 'open' AND created_at > ?
@@ -123,12 +131,28 @@ export const store = {
     return stmts.recentContext.all(chatJid, limit).reverse();
   },
 
-  /** يرجّع id المهمة الجديدة، أو null لو كانت مكررة. */
-  addTask(task) {
+  /**
+   * يرجّع id المهمة الجديدة، أو null لو كانت مكررة.
+   * فحص التكرار يخص المهام المستخرجة تلقائيًا — الإضافة اليدوية تتخطاه
+   * لأن المستخدم يعرف ما يضيف.
+   */
+  addTask(task, { skipDedup = false } = {}) {
     const norm = normalize(task.title);
     const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-    if (stmts.findDuplicate.get(norm, weekAgo)) return null;
+    if (!skipDedup && stmts.findDuplicate.get(norm, weekAgo)) return null;
     const info = stmts.insertTask.run({
+      message_id: null,
+      chat_jid: null,
+      chat_name: null,
+      details: null,
+      requester: null,
+      due_date: null,
+      due_text: null,
+      priority: 'normal',
+      confidence: 1,
+      source_text: null,
+      source_ts: Date.now(),
+      source: 'whatsapp',
       ...task,
       norm_title: norm,
       created_at: Date.now(),

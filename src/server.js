@@ -15,6 +15,28 @@ export function startServer({ wa, pipeline }) {
     res.json({ tasks: store.listTasks(status), counts: store.counts() });
   });
 
+  app.post('/api/tasks', (req, res) => {
+    const { title, details, due_date, priority } = req.body;
+    if (!title?.trim()) return res.status(400).json({ error: 'العنوان مطلوب' });
+    if (due_date && !/^\d{4}-\d{2}-\d{2}$/.test(due_date.trim())) {
+      return res.status(400).json({ error: 'صيغة التاريخ يجب أن تكون YYYY-MM-DD' });
+    }
+
+    const id = store.addTask(
+      {
+        title: title.trim(),
+        details: details?.trim() || null,
+        due_date: due_date?.trim() || null,
+        priority: ['urgent', 'high', 'normal'].includes(priority) ? priority : 'normal',
+        requester: 'أنت',
+        source: 'manual',
+      },
+      { skipDedup: true },
+    );
+
+    res.status(201).json({ id });
+  });
+
   app.post('/api/tasks/:id/status', (req, res) => {
     const { status } = req.body;
     if (!['open', 'done'].includes(status)) {

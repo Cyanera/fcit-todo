@@ -23,11 +23,61 @@
       <button class="theme-toggle" id="theme" type="button" aria-live="polite"></button>
     </header>
 
-    <nav class="tabs" id="tabs">
-      <button class="tab is-active" data-status="open">المفتوحة</button>
-      <button class="tab" data-status="done">المنجزة</button>
-      <button class="tab" data-status="all">الكل</button>
-    </nav>
+    <div class="toolbar">
+      <nav class="tabs" id="tabs">
+        <button class="tab is-active" data-status="open">المفتوحة</button>
+        <button class="tab" data-status="done">المنجزة</button>
+        <button class="tab" data-status="all">الكل</button>
+      </nav>
+      <button
+        class="add-btn"
+        id="addToggle"
+        type="button"
+        aria-expanded="false"
+        aria-label="أضف مهمة يدوية"
+        title="أضف مهمة يدوية"
+      >
+        +
+      </button>
+    </div>
+
+    <form class="add-form" id="addForm" hidden>
+      <input
+        id="f-title"
+        name="title"
+        type="text"
+        required
+        maxlength="200"
+        placeholder="وش المطلوب؟ مثال: جهّز عرض المحاضرة الرابعة"
+        autocomplete="off"
+      />
+      <textarea
+        id="f-details"
+        name="details"
+        rows="2"
+        maxlength="1000"
+        placeholder="تفاصيل إضافية (اختياري)"
+      ></textarea>
+      <div class="add-row">
+        <label>
+          <span>الموعد</span>
+          <input id="f-due" name="due_date" type="date" />
+        </label>
+        <label>
+          <span>الأولوية</span>
+          <select id="f-priority" name="priority">
+            <option value="normal">عادي</option>
+            <option value="high">مهم</option>
+            <option value="urgent">عاجل</option>
+          </select>
+        </label>
+        <div class="add-actions">
+          <button type="button" class="btn" id="addCancel">إلغاء</button>
+          <button type="submit" class="btn solid">أضف المهمة</button>
+        </div>
+      </div>
+      <p class="add-error" id="addError" hidden></p>
+    </form>
 
     <main id="list" class="list" aria-live="polite"></main>
 

@@ -74,7 +74,9 @@ function card(t) {
   const dueLabel = t.due_date || t.due_text;
 
   const chips = [
-    t.requester && `<span class="chip">من: ${esc(t.requester)}</span>`,
+    t.source === 'manual'
+      ? '<span class="chip manual">✎ يدوية</span>'
+      : t.requester && `<span class="chip">من: ${esc(t.requester)}</span>`,
     dueLabel &&
       `<span class="chip due ${overdue ? 'overdue' : ''}">⏳ ${esc(dueLabel)}${overdue ? ' — متأخرة' : ''}</span>`,
     `<span class="chip">${PRIORITY[t.priority] ?? t.priority}</span>`,
@@ -205,6 +207,67 @@ listEl.addEventListener('click', async (e) => {
     });
   }
   refresh();
+});
+
+/* ── إضافة مهمة يدويًا ───────────────────────────────────────── */
+const addToggle = document.getElementById('addToggle');
+const addForm = document.getElementById('addForm');
+const addCancel = document.getElementById('addCancel');
+const addError = document.getElementById('addError');
+const titleInput = document.getElementById('f-title');
+
+function openAddForm(open) {
+  addForm.hidden = !open;
+  addToggle.setAttribute('aria-expanded', String(open));
+  addToggle.setAttribute('aria-label', open ? 'إغلاق' : 'أضف مهمة يدوية');
+  addToggle.title = open ? 'إغلاق' : 'أضف مهمة يدوية';
+  addError.hidden = true;
+  if (open) titleInput.focus();
+  else addForm.reset();
+}
+
+addToggle.addEventListener('click', () => openAddForm(addForm.hidden));
+addCancel.addEventListener('click', () => openAddForm(false));
+
+addForm.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') openAddForm(false);
+  // Cmd/Ctrl+Enter يرسل من أي حقل، بما فيها مربع التفاصيل
+  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) addForm.requestSubmit();
+});
+
+addForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const payload = {
+    title: titleInput.value,
+    details: document.getElementById('f-details').value,
+    due_date: document.getElementById('f-due').value,
+    priority: document.getElementById('f-priority').value,
+  };
+
+  try {
+    const res = await fetch('/api/tasks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const { error } = await res.json().catch(() => ({}));
+      addError.textContent = error || 'تعذّرت الإضافة';
+      addError.hidden = false;
+      return;
+    }
+    openAddForm(false);
+    if (filter === 'done') {
+      // المهمة الجديدة مفتوحة — ننقل العرض لها حتى تظهر مباشرة
+      filter = 'open';
+      for (const t of tabsEl.children)
+        t.classList.toggle('is-active', t.dataset.status === 'open');
+    }
+    refresh();
+  } catch {
+    addError.textContent = 'الخادم غير متاح';
+    addError.hidden = false;
+  }
 });
 
 tabsEl.addEventListener('click', (e) => {
