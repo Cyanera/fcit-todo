@@ -1,0 +1,122 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+
+// نضبط الهوية قبل تحميل الوحدة لأن config يقرأ البيئة عند الاستيراد
+process.env.MY_NAMES = 'عهد,د. عهد,دكتورة عهد,Ahad';
+process.env.OTHER_NAMES = 'خالد,سارة,فهد,منى';
+process.env.MODE = 'rules';
+process.env.MIN_CONFIDENCE = '0.6';
+
+const { extractByRules } = await import('../src/rules.js');
+
+/** يشغّل المستخرج على رسالة واحدة ويرجّع المهمة أو null. */
+function run(body, { isMention = false, quotedFromMe = false } = {}) {
+  const { tasks } = extractByRules({
+    messages: [{ sender_name: 'زميل', fromMe: false, isMention, quotedFromMe, body }],
+  });
+  return tasks[0] ?? null;
+}
+
+test('يلتقط المهام الجماعية — وهي الغالبة في قروبات العمل', () => {
+  const captured = [
+    'لازم نرفع درجات أعمال السنة قبل الخميس',
+    'مطلوب من الجميع تعبئة نموذج الجودة',
+    'ممكن أحد يراجع خطة المقرر؟',
+    'تذكير: آخر موعد لتسليم التقارير بكرة',
+    'الرجاء الاطلاع على التعميم والرد عليه',
+    'ضروري الجميع يحضر اجتماع القسم اليوم',
+    'لا تنسون ترفعون الخطط على النظام',
+    'الجميع يرفع الدرجات قبل نهاية الأسبوع',
+  ];
+  for (const body of captured) {
+    assert.ok(run(body), `كان المفروض تُلتقط: ${body}`);
+  }
+});
+
+test('يستبعد ما هو موجّه لزميل بالاسم', () => {
+  const excluded = [
+    'د. خالد ممكن ترفع الدرجات؟',
+    'يا فهد تكفى جهّز القاعة',
+    'سارة لازم تراجعين التقرير',
+  ];
+  for (const body of excluded) {
+    assert.equal(run(body), null, `كان المفروض تُستبعد: ${body}`);
+  }
+});
+
+test('يلتقط الموجّه لك بثقة أعلى من الجماعي', () => {
+  const group = run('لازم نرفع الدرجات قبل الخميس');
+  const mention = run('لا تنسى ترفع الدرجات اليوم', { isMention: true });
+  const named = run('يا عهد تكفى جهّز أسئلة النهائي بكرة');
+
+  assert.ok(mention.confidence > group.confidence);
+  assert.ok(named.confidence > group.confidence);
+});
+
+test('يذكر أنك ضمن عدة أشخاص فلا يُستبعد', () => {
+  assert.ok(run('د. خالد و د. عهد لازم تعتمدون الخطة'));
+});
+
+test('يتجاهل التحيات والشكر والإعلانات', () => {
+  const noise = [
+    'السلام عليكم ورحمة الله',
+    'شكرًا للجميع على الجهود',
+    'صباح الخير',
+    'الاجتماع بكرة الساعة ١٠ في القاعة',
+    'مبروك الترقية دكتور',
+  ];
+  for (const body of noise) {
+    assert.equal(run(body), null, `كان المفروض يُتجاهل: ${body}`);
+  }
+});
+
+test('لا يطابق جزءًا من كلمة — «رد» ليست «موارد»', () => {
+  const falsePositives = [
+    'الجو بارد اليوم',
+    'كل مسلم يعرف هذا',
+    'التردد على المكتب صعب',
+    'الحمد لله على كل حال',
+  ];
+  for (const body of falsePositives) {
+    assert.equal(run(body), null, `إيجابية كاذبة: ${body}`);
+  }
+});
+
+test('يميّز الماضي من الأمر: «أرسلت التعميم» خبر لا طلب', () => {
+  assert.equal(run('الموارد البشرية أرسلت التعميم'), null);
+  assert.equal(run('المعهد أرسل التعميم للجميع'), null);
+  assert.ok(run('أرسل التعميم للجميع'), 'صيغة الأمر تبقى ملتقطة');
+});
+
+test('اسم «عهد» لا يُحسب نداءً في المعهد وولي العهد', () => {
+  // ورود الاسم داخل كلمة أو في سياق غير النداء لا يرفع الثقة ولا يبتر العنوان
+  assert.equal(run('اجتماع في مبنى المعهد بكرة'), null);
+  assert.equal(run('هذا من ولي العهد حفظه الله'), null);
+});
+
+test('يحوّل المواعيد النسبية إلى تواريخ فعلية', () => {
+  const today = new Intl.DateTimeFormat('en-CA', {
+    timeZone: process.env.TZ || 'Asia/Riyadh',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(new Date());
+
+  const tomorrow = new Date(`${today}T12:00:00Z`);
+  tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+
+  assert.equal(run('لازم ترفع الدرجات اليوم').due_date, today);
+  assert.equal(run('لازم ترفع الدرجات بكرة').due_date, tomorrow.toISOString().slice(0, 10));
+  assert.equal(run('لازم تعتمد الخطة قبل 2026-10-05').due_date, '2026-10-05');
+  assert.ok(run('لازم نسلم التقرير الخميس').due_date, 'أسماء الأيام تُحوَّل');
+});
+
+test('الاستعجال والموعد القريب يرفعان الأولوية', () => {
+  assert.equal(run('ضروري ترفع الدرجات').priority, 'urgent');
+  assert.equal(run('لازم ترفع الدرجات اليوم').priority, 'urgent');
+  assert.equal(run('مطلوب تعبئة النموذج').priority, 'normal');
+});
+
+test('العنوان ينظَّف من النداء والمجاملة', () => {
+  assert.equal(run('يا عهد تكفى جهّز أسئلة النهائي').title, 'جهّز أسئلة النهائي');
+  // «أحد» هنا بمعنى «شخص ما» فلا تُبتر من العنوان
+  assert.match(run('ممكن أحد يراجع خطة المقرر؟').title, /أحد يراجع/);
+});

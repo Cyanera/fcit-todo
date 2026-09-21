@@ -7,7 +7,8 @@
   "scripts": {
     "start": "node src/index.js",
     "login": "node src/login.js",
-    "groups": "node src/groups.js"
+    "groups": "node src/groups.js",
+    "test": "node --test \"test/**/*.test.mjs\""
   },
   "engines": {
     "node": ">=20"
