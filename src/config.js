@@ -7,9 +7,14 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const bool = (v, fallback) =>
   v === undefined || v === '' ? fallback : /^(1|true|yes|on)$/i.test(v);
 
+/**
+ * يفصل قائمة مكتوبة يدويًا في .env.
+ * يقبل الفاصلة العربية «،» والإنجليزية «,» والفاصلة المنقوطة «؛» و«;»،
+ * لأن من يكتب أسماء عربية سيستخدم لوحة مفاتيح عربية بطبيعة الحال.
+ */
 const list = (v) =>
   (v ?? '')
-    .split(',')
+    .split(/[,،;؛]/)
     .map((s) => s.trim())
     .filter(Boolean);
 

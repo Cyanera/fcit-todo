@@ -94,6 +94,25 @@ test('اسم «عهد» لا يُحسب نداءً في المعهد وولي ا
   assert.equal(run('هذا من ولي العهد حفظه الله'), null);
 });
 
+test('يقبل الفاصلة العربية في قوائم .env', async () => {
+  // من يكتب أسماء عربية يستخدم لوحة مفاتيح عربية، فالفاصلة تكون «،» لا «,»
+  const before = process.env.OTHER_NAMES;
+  process.env.OTHER_NAMES = 'نورة،سهام،رضوانة';
+  const fresh = await import(`../src/config.js?v=${Math.random()}`);
+  assert.deepEqual(fresh.config.otherNames, ['نورة', 'سهام', 'رضوانة']);
+  process.env.OTHER_NAMES = before;
+});
+
+test('يقشّر المجاملة ككلمة كاملة لا كجزء منها', () => {
+  // «تكفي» كانت تُقشَّر من داخل «تكفين» فيبقى حرف «ن» شاردًا
+  assert.equal(run('يا عهد تكفين جهزي أسئلة النهائي').title, 'جهزي أسئلة النهائي');
+});
+
+test('يفهم صيغ الأمر المؤنثة', () => {
+  assert.ok(run('ارفعي الدرجات على النظام'));
+  assert.ok(run('الجميع يجهز الملفات'));
+});
+
 test('يحوّل المواعيد النسبية إلى تواريخ فعلية', () => {
   const today = new Intl.DateTimeFormat('en-CA', {
     timeZone: process.env.TZ || 'Asia/Riyadh',
