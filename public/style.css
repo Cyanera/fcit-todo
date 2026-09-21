@@ -46,8 +46,9 @@
   --shadow: 0 1px 2px rgb(28 26 23 / 6%), 0 8px 24px rgb(28 26 23 / 5%);
 }
 
+/* الوضع الداكن: تلقائي حسب النظام، ما لم يختر المستخدم الفاتح صراحة */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme='light']) {
     --bg: #14130f;
     --surface: #1d1b17;
     --surface-2: #232019;
@@ -61,6 +62,22 @@
     --normal: #6aa9e0;
     --shadow: 0 1px 2px rgb(0 0 0 / 30%), 0 8px 24px rgb(0 0 0 / 25%);
   }
+}
+
+/* اختيار يدوي صريح */
+:root[data-theme='dark'] {
+  --bg: #14130f;
+  --surface: #1d1b17;
+  --surface-2: #232019;
+  --border: #322e26;
+  --text: #f2efe8;
+  --text-dim: #a49d91;
+  --text-faint: #746d62;
+  --accent: #4fbf9f;
+  --urgent: #ef6a5c;
+  --high: #e8a33d;
+  --normal: #6aa9e0;
+  --shadow: 0 1px 2px rgb(0 0 0 / 30%), 0 8px 24px rgb(0 0 0 / 25%);
 }
 
 * {
@@ -380,4 +397,80 @@ details.src blockquote {
     order: 99;
     margin-top: 12px;
   }
+}
+
+/* ── زر تبديل الثيم ─────────────────────────────────────────── */
+.theme-toggle {
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 500;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-dim);
+  border-radius: 999px;
+  padding: 6px 14px;
+  cursor: pointer;
+  transition: 0.15s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.theme-toggle:hover {
+  color: var(--text);
+  border-color: var(--text-faint);
+}
+
+/* ── هوية FCIT ──────────────────────────────────────────────── */
+.wordmark {
+  font-weight: 900;
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  color: var(--bg);
+  background: var(--accent);
+  padding: 4px 9px 3px;
+  border-radius: 7px;
+  vertical-align: middle;
+  margin-inline-end: 4px;
+}
+
+/* الخط يظهر بوضوح أكبر في العناوين: أسود عريض ومسافات مضبوطة */
+h1 {
+  font-size: 1.75rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+
+.title {
+  font-weight: 700;
+  letter-spacing: -0.005em;
+}
+
+.tab.is-active {
+  font-weight: 900;
+}
+
+.counts b {
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── سبرنكلز الإنجاز ────────────────────────────────────────── */
+.sprinkles {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 60;
+  overflow: hidden;
+}
+
+.sprinkles i {
+  position: absolute;
+  display: block;
+  width: 8px;
+  height: 13px;
+  margin: -6px 0 0 -4px;
+  border-radius: 2px;
+  will-change: transform, opacity;
 }

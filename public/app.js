@@ -3,6 +3,37 @@ const countsEl = document.getElementById('counts');
 const statusEl = document.getElementById('status');
 const footEl = document.getElementById('foot');
 const tabsEl = document.getElementById('tabs');
+const themeEl = document.getElementById('theme');
+
+/* ── الثيم: تلقائي ← فاتح ← داكن ─────────────────────────────── */
+const THEMES = ['auto', 'light', 'dark'];
+const THEME_LABEL = { auto: '🖥️ تلقائي', light: '☀️ فاتح', dark: '🌙 داكن' };
+
+const readTheme = () => {
+  try {
+    return THEMES.includes(localStorage.getItem('theme'))
+      ? localStorage.getItem('theme')
+      : 'auto';
+  } catch {
+    return 'auto';
+  }
+};
+
+function applyTheme(theme) {
+  if (theme === 'auto') delete document.documentElement.dataset.theme;
+  else document.documentElement.dataset.theme = theme;
+  themeEl.textContent = THEME_LABEL[theme];
+  try {
+    localStorage.setItem('theme', theme);
+  } catch {}
+}
+
+themeEl.addEventListener('click', () => {
+  const next = THEMES[(THEMES.indexOf(readTheme()) + 1) % THEMES.length];
+  applyTheme(next);
+});
+
+applyTheme(readTheme());
 
 let filter = 'open';
 
@@ -107,6 +138,50 @@ async function refresh() {
   }
 }
 
+/* ── سبرنكلز الإنجاز ─────────────────────────────────────────── */
+const SPRINKLE_COLORS = [
+  '#1f6f5c', '#4fbf9f', '#c9760f', '#e8a33d',
+  '#2f6fb0', '#6aa9e0', '#c2372c', '#ef6a5c',
+];
+
+/** رشّة ألوان تنفجر من زر "تم" احتفاءً بإنجاز المهمة. */
+function sprinkles(x, y) {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+  const layer = document.createElement('div');
+  layer.className = 'sprinkles';
+  document.body.appendChild(layer);
+
+  for (let i = 0; i < 34; i++) {
+    const p = document.createElement('i');
+    p.style.background = SPRINKLE_COLORS[i % SPRINKLE_COLORS.length];
+    p.style.left = `${x}px`;
+    p.style.top = `${y}px`;
+    if (i % 3 === 0) p.style.borderRadius = '50%'; // خليط بين حبات ودوائر
+    layer.appendChild(p);
+
+    const angle = Math.random() * Math.PI * 2;
+    const dist = 50 + Math.random() * 130;
+    const dx = Math.cos(angle) * dist;
+    const dy = Math.sin(angle) * dist - 50; // ميل للأعلى قبل السقوط
+
+    p.animate(
+      [
+        { transform: 'translate(0,0) rotate(0deg) scale(1)', opacity: 1 },
+        { transform: `translate(${dx * 0.7}px, ${dy}px) rotate(${Math.random() * 360}deg) scale(1)`, opacity: 1, offset: 0.35 },
+        { transform: `translate(${dx}px, ${dy + 190}px) rotate(${Math.random() * 720 - 360}deg) scale(0.6)`, opacity: 0 },
+      ],
+      {
+        duration: 850 + Math.random() * 550,
+        easing: 'cubic-bezier(.18,.7,.35,1)',
+        fill: 'forwards',
+      },
+    );
+  }
+
+  setTimeout(() => layer.remove(), 1600);
+}
+
 listEl.addEventListener('click', async (e) => {
   const btn = e.target.closest('[data-act]');
   if (!btn) return;
@@ -119,6 +194,10 @@ listEl.addEventListener('click', async (e) => {
     await fetch(`/api/tasks/${id}`, { method: 'DELETE' });
   } else {
     const now = cardEl.classList.contains('is-done') ? 'open' : 'done';
+    if (now === 'done') {
+      const r = btn.getBoundingClientRect();
+      sprinkles(r.left + r.width / 2, r.top + r.height / 2);
+    }
     await fetch(`/api/tasks/${id}/status`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

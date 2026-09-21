@@ -3,16 +3,24 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>مهامي من القروب</title>
+    <title>مهام FCIT</title>
     <link rel="stylesheet" href="style.css" />
+    <script>
+      // يُطبّق الثيم المحفوظ قبل أول رسم لتفادي وميض الألوان
+      try {
+        const t = localStorage.getItem('theme');
+        if (t && t !== 'auto') document.documentElement.dataset.theme = t;
+      } catch {}
+    </script>
   </head>
   <body>
     <header class="topbar">
       <div class="brand">
-        <h1>مهامي من القروب</h1>
+        <h1><span class="wordmark">FCIT</span> مهام أكاديمية</h1>
         <span class="status" id="status"><i></i><span>جارٍ الاتصال…</span></span>
       </div>
       <div class="counts" id="counts"></div>
+      <button class="theme-toggle" id="theme" type="button" aria-live="polite"></button>
     </header>
 
     <nav class="tabs" id="tabs">
