@@ -24,6 +24,8 @@ const STRONG_SIGNALS = [
   'تعبئه', 'تجهيز', 'مراجعه', 'اعتماد', 'تحديث', 'ارسال', 'استكمال',
   'تسجيل', 'ترشيح', 'توقيع', 'اعداد', 'رفع الدرجات', 'التسجيل',
   // الإنجليزية — كثير من تعاميم الجامعة والقروبات المهنية تأتي بها
+  'نامل منكم', 'نامل', 'نرجو منكم', 'نرجو', 'يرجى', 'يرجي', 'التكرم',
+  'بضروره', 'نفيدكم', 'نحيطكم', 'عليه نامل', 'وعليه',
   'please', 'kindly', 'required', 'needed', 'must', 'deadline', 'due date',
   'reminder', 'dont forget', 'do not forget', 'asap', 'make sure',
   'we need', 'you need', 'is due', 'no later than',
@@ -223,6 +225,9 @@ function extractDue(normalized, raw) {
   return null;
 }
 
+/** الكلمات الإضافية التي يضيفها المستخدم في RULE_KEYWORDS. */
+const extraSignals = config.ruleKeywords;
+
 /** مجاملات تتصدّر الطلب ولا تضيف معنى للعنوان. */
 const TITLE_PREFIXES = [
   'تكفى', 'تكفي', 'تكفين', 'تكفون', 'لو سمحت', 'لو سمحتِ', 'لو سمحتي',
@@ -230,6 +235,9 @@ const TITLE_PREFIXES = [
   'ارجو', 'أرجو', 'ممكن', 'بليز', 'اذا ممكن', 'إذا ممكن', 'عفوا', 'عفوًا',
   'please', 'kindly', 'pls', 'plz', 'could you', 'can you', 'would you',
   'reminder', 'note', 'fyi',
+  // صيغ التعاميم الرسمية
+  'نأمل منكم', 'نامل منكم', 'نأمل', 'نامل', 'نرجو منكم', 'نرجو',
+  'يرجى', 'يُرجى', 'يرجي', 'التكرم', 'بضرورة', 'بضروره', 'وعليه',
 ];
 
 /**
@@ -261,9 +269,9 @@ function trimTail(text) {
     const before = out;
     out = out.replace(/[\s،,:;.!؟-]+$/u, '');
 
-    // «قبل يوم الخميس» / «before Thursday» — الموعد بشرطه
+    // ذيل الموعد كاملًا مهما طال: «خلال هذا الأسبوع، وبحد أقصى نهاية دوام الخميس»
     out = out.replace(
-      /\s+(?:قبل|بحلول|before|by|due\s+on|no\s+later\s+than)\s+\S+(?:\s+\S+)?$/iu,
+      /\s*[،,]?\s*(?:و?بحد\s+أقصى|و?بحد\s+اقصى|خلال|في\s+موعد\s+أقصاه|قبل|بحلول|حتى\s+نهاية|لا\s+يتجاوز|before|by|no\s+later\s+than|due\s+on)(?=\s).*$/iu,
       '',
     );
 
@@ -284,10 +292,32 @@ function trimTail(text) {
 }
 
 /**
- * عنوان مختصر من نص الرسالة. القواعد ما تقدر تعيد الصياغة مثل النموذج،
- * لكنها تقدر تشيل النداء والمجاملة والموعد فيبان المطلوب وحده.
+ * التعاميم الرسمية تبدأ بتحية ومخاطَبة، والطلب مدفون في فقرة لاحقة،
+ * وتنتهي بشكر. أخذُ أول سطر يعطي «السلام عليكم ورحمة الله وبركاته».
+ * نختار الفقرة التي تحمل إشارة الطلب فعلًا.
  */
-function toTitle(raw, myNames) {
+function pickRequestSegment(raw) {
+  const segments = raw
+    .split(/\n+|(?<=[.!؟])\s+/u)
+    .map((s) => s.replace(/\*+/g, '').trim()) // تنسيق واتساب العريض
+    .filter((s) => s.length > 3);
+
+  if (segments.length <= 1) return raw;
+
+  for (const seg of segments) {
+    const n = normalize(seg);
+    if (has(n, NOISE_SIGNALS) && seg.length < 80) continue; // تحية أو شكر ختامي
+    if (has(n, STRONG_SIGNALS) || hasVerb(n) || has(n, extraSignals)) return seg;
+  }
+  return raw;
+}
+
+/**
+ * عنوان مختصر من نص الرسالة. القواعد ما تقدر تعيد الصياغة مثل النموذج،
+ * لكنها تقدر تختار فقرة الطلب وتشيل النداء والمجاملة والموعد.
+ */
+function toTitle(rawFull, myNames) {
+  const raw = pickRequestSegment(rawFull);
   let cleaned = raw
     .replace(/@\d+/g, '')
     .replace(/\s+/g, ' ')
@@ -329,9 +359,6 @@ function toTitle(raw, myNames) {
   const lastBreak = Math.max(cut.lastIndexOf('،'), cut.lastIndexOf('.'), cut.lastIndexOf(' '));
   return `${cut.slice(0, lastBreak > 30 ? lastBreak : 70).trim()}…`;
 }
-
-/** الكلمات الإضافية التي يضيفها المستخدم في RULE_KEYWORDS. */
-const extraSignals = config.ruleKeywords;
 
 /**
  * هل نودي المستخدم باسمه؟ نشترط **موضع نداء** لا مجرد ورود الاسم، لأن
