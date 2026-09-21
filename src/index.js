@@ -1,21 +1,43 @@
-import { config } from './config.js';
+import { config, activeMode, hasRealKey } from './config.js';
 import { WhatsAppClient } from './wa.js';
 import { Pipeline } from './pipeline.js';
 import { startServer } from './server.js';
 
 function preflight() {
+  const mode = activeMode();
+
+  if (mode === 'rules') {
+    console.log('\n🔤 وضع القواعد — بدون Claude وبدون أي تكلفة.');
+    console.log('   يلتقط الرسائل الموجّهة لك (منشن / رد عليك / نداء باسمك)');
+    console.log('   والتي فيها إشارة طلب واضحة. الطلبات غير المباشرة راح تفوته.');
+    if (!hasRealKey()) {
+      console.log('   أضف ANTHROPIC_API_KEY في .env وينتقل للتصنيف الذكي تلقائيًا.');
+    }
+  } else {
+    console.log(`\n🧠 وضع التصنيف الذكي — ${config.model}`);
+  }
+
   const problems = [];
-  if (!config.anthropicKey) problems.push('ANTHROPIC_API_KEY غير مضبوط في ملف .env');
-  if (!config.myNames.length) problems.push('MY_NAMES فاضي — التصنيف راح يكون ضعيف بدونه');
-  if (!config.groupJids.length)
+  if (!config.myNames.length) {
+    problems.push(
+      mode === 'rules'
+        ? 'MY_NAMES فاضي — وضع القواعد يعتمد عليه، وبدونه ما راح يلتقط إلا المنشن الصريح'
+        : 'MY_NAMES فاضي — التصنيف راح يكون ضعيف بدونه',
+    );
+  }
+  if (!config.groupJids.length) {
     problems.push('GROUP_JIDS فاضي — سيقرأ كل القروبات. شغّل npm run groups لتحديد قروب معيّن');
+  }
+  if (config.mode === 'claude' && !hasRealKey()) {
+    console.error('\n❌ MODE=claude لكن ANTHROPIC_API_KEY غير صالح في .env');
+    process.exit(1);
+  }
 
   if (problems.length) {
     console.warn('\n⚠️  تنبيهات الإعداد:');
     for (const p of problems) console.warn(`   • ${p}`);
-    console.warn('');
   }
-  if (!config.anthropicKey) process.exit(1);
+  console.warn('');
 }
 
 async function main() {

@@ -1,6 +1,7 @@
-import { config, localTimeHHMM, today } from './config.js';
+import { config, localTimeHHMM, today, activeMode } from './config.js';
 import { store } from './db.js';
 import { classifyBatch } from './classify.js';
+import { extractByRules } from './rules.js';
 
 const PRIORITY_LABEL = { urgent: '🔴 عاجل', high: '🟠 مهم', normal: '🔵 عادي' };
 
@@ -61,24 +62,40 @@ export class Pipeline {
   async #process(batch) {
     const chatJid = batch[0].chatJid;
 
-    // نضيف علامات تساعد النموذج: منشن صريح، أو رد على رسالة المستخدم.
-    const forModel = batch.map((m) => ({
-      sender_name: m.senderName,
-      fromMe: m.fromMe,
-      body: [
-        m.isMention ? '(منشن لك) ' : '',
-        m.quoted ? `(ردًا على${m.quotedFromMe ? ' رسالتك' : ''}: "${m.quoted.slice(0, 120)}") ` : '',
-        m.body,
-      ].join(''),
-    }));
+    const mode = activeMode();
+    let result;
 
-    const openTasks = store.listTasks('open').slice(0, 40).map((t) => t.title);
-    const context = store.recentContext(chatJid, 12).map((m) => ({
-      sender_name: m.sender_name,
-      body: m.body,
-    }));
+    if (mode === 'rules') {
+      // وضع القواعد يحتاج الإشارات خامًا (منشن، رد عليك) لا مدموجة في النص
+      result = extractByRules({
+        messages: batch.map((m) => ({
+          sender_name: m.senderName,
+          fromMe: m.fromMe,
+          isMention: m.isMention,
+          quotedFromMe: m.quotedFromMe,
+          body: m.body,
+        })),
+      });
+    } else {
+      // نضيف علامات تساعد النموذج: منشن صريح، أو رد على رسالة المستخدم.
+      const forModel = batch.map((m) => ({
+        sender_name: m.senderName,
+        fromMe: m.fromMe,
+        body: [
+          m.isMention ? '(منشن لك) ' : '',
+          m.quoted ? `(ردًا على${m.quotedFromMe ? ' رسالتك' : ''}: "${m.quoted.slice(0, 120)}") ` : '',
+          m.body,
+        ].join(''),
+      }));
 
-    const result = await classifyBatch({ messages: forModel, context, openTasks });
+      const openTasks = store.listTasks('open').slice(0, 40).map((t) => t.title);
+      const context = store.recentContext(chatJid, 12).map((m) => ({
+        sender_name: m.sender_name,
+        body: m.body,
+      }));
+
+      result = await classifyBatch({ messages: forModel, context, openTasks });
+    }
 
     for (const m of batch) store.markProcessed(m.id);
 

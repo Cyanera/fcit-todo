@@ -23,6 +23,10 @@ export const config = {
   model: process.env.CLAUDE_MODEL || 'claude-opus-5',
   effort: process.env.CLAUDE_EFFORT || 'low',
 
+  // auto = ذكي إذا وُجد مفتاح، وإلا قواعد. أو افرض: claude | rules
+  mode: (process.env.MODE || 'auto').toLowerCase(),
+  ruleKeywords: list(process.env.RULE_KEYWORDS),
+
   myNames: list(process.env.MY_NAMES),
   myNumber: (process.env.MY_NUMBER || '').replace(/\D/g, ''),
 
@@ -38,6 +42,22 @@ export const config = {
   tz: process.env.TZ || 'Asia/Riyadh',
   port: Number(process.env.PORT || 3777),
 };
+
+/**
+ * القالب في .env.example يحمل `sk-ant-...` كمثال. لو تُرك كما هو فهو ليس
+ * مفتاحًا — نعتبره غائبًا حتى لا يحاول البوت الاتصال ويفشل عند كل دفعة.
+ */
+export function hasRealKey() {
+  const k = config.anthropicKey;
+  return !!k && k.startsWith('sk-ant-') && k.length > 25 && !k.includes('...');
+}
+
+/** الوضع الفعلي بعد حسم `auto`: 'claude' أو 'rules'. */
+export function activeMode() {
+  if (config.mode === 'rules') return 'rules';
+  if (config.mode === 'claude') return 'claude';
+  return hasRealKey() ? 'claude' : 'rules';
+}
 
 /** التاريخ الحالي بصيغة YYYY-MM-DD في المنطقة الزمنية المضبوطة. */
 export function today() {

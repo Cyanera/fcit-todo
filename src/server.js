@@ -1,6 +1,6 @@
 import path from 'node:path';
 import express from 'express';
-import { config } from './config.js';
+import { config, activeMode } from './config.js';
 import { store } from './db.js';
 
 export function startServer({ wa, pipeline }) {
@@ -65,10 +65,12 @@ export function startServer({ wa, pipeline }) {
   });
 
   app.get('/api/status', (req, res) => {
+    const mode = activeMode();
     res.json({
       whatsapp: wa.status,
       groups: config.groupJids,
-      model: config.model,
+      mode,
+      model: mode === 'rules' ? 'قواعد (بدون تكلفة)' : config.model,
       pending: pipeline.buffer.length,
       stats: pipeline.stats,
     });

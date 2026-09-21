@@ -130,9 +130,13 @@ async function refresh() {
     statusEl.innerHTML = `<i></i><span>${esc(text)}</span>`;
 
     const s = statusRes.stats;
+    // عدّاد التوكن بلا معنى في وضع القواعد — ما نعرضه إلا عند التصنيف الذكي
+    const cost =
+      statusRes.mode === 'rules'
+        ? ''
+        : ` · ${s.inputTokens.toLocaleString('ar')} توكن دخل (${s.cachedTokens.toLocaleString('ar')} من الكاش)`;
     footEl.textContent =
-      `${statusRes.model} · ${s.batches} دفعة · ${s.tasks} مهمة مستخرجة · ` +
-      `${s.inputTokens.toLocaleString('ar')} توكن دخل (${s.cachedTokens.toLocaleString('ar')} من الكاش)` +
+      `${statusRes.model} · ${s.batches} دفعة · ${s.tasks} مهمة مستخرجة${cost}` +
       (statusRes.pending ? ` · ${statusRes.pending} رسالة بالطابور` : '');
   } catch {
     statusEl.className = 'status bad';
