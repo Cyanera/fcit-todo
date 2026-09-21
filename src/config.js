@@ -20,11 +20,14 @@ const list = (v) =>
 
 export const config = {
   root,
-  dataDir: path.join(root, 'data'),
-  authDir: path.join(root, 'data', 'wa-auth'),
+  // DATA_DIR يسمح بعزل الحالة عن النسخة العاملة — للاختبار خاصةً
+  dataDir: process.env.DATA_DIR || path.join(root, 'data'),
+  authDir: path.join(process.env.DATA_DIR || path.join(root, 'data'), 'wa-auth'),
   // DB_PATH يسمح بتشغيل نسخة على قاعدة منفصلة — للاختبار دون المساس
   // بقاعدة النسخة العاملة، فحذف ملفها تحت رجل عملية شغّالة يفقد كتاباتها.
-  dbPath: process.env.DB_PATH || path.join(root, 'data', 'tasks.db'),
+  dbPath:
+    process.env.DB_PATH ||
+    path.join(process.env.DATA_DIR || path.join(root, 'data'), 'tasks.db'),
 
   anthropicKey: process.env.ANTHROPIC_API_KEY,
   model: process.env.CLAUDE_MODEL || 'claude-opus-5',

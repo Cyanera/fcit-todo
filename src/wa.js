@@ -148,14 +148,28 @@ export class WhatsAppClient extends EventEmitter {
 
     if (connection === 'close') {
       const code = lastDisconnect?.error?.output?.statusCode;
-      const loggedOut = code === DisconnectReason.loggedOut;
-      this.status = loggedOut ? 'logged-out' : 'reconnecting';
 
-      if (loggedOut) {
+      if (code === DisconnectReason.loggedOut) {
+        this.status = 'logged-out';
         console.error(
           '\n❌ تم تسجيل الخروج من واتساب. احذف مجلد data/wa-auth ثم شغّل npm run login من جديد.',
         );
         this.emit('logged-out');
+        return;
+      }
+
+      // 440: جلسة أخرى بنفس الاعتماد أزاحت هذه. إعادة الاتصال هنا تُنتج
+      // حلقة لا تنتهي: كل نسخة تزيح الأخرى فتعيد الأخرى الاتصال فتزيحها.
+      // نخرج بدل أن نتقاتل، ونقول السبب.
+      if (code === DisconnectReason.connectionReplaced) {
+        this.status = 'replaced';
+        console.error(
+          '\n❌ جلسة أخرى أزاحت هذه الجلسة (440).\n' +
+            '   غالبًا نسخة ثانية من البوت تعمل في طرفية أخرى.\n' +
+            '   أوقفها ثم شغّل هذه وحدها:\n\n' +
+            '     pkill -f "node src/index.js"\n',
+        );
+        this.emit('replaced');
         return;
       }
 

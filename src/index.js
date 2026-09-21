@@ -2,6 +2,7 @@ import { config, activeMode, hasRealKey } from './config.js';
 import { WhatsAppClient } from './wa.js';
 import { Pipeline } from './pipeline.js';
 import { startServer } from './server.js';
+import { acquireLock } from './lock.js';
 
 function preflight() {
   const mode = activeMode();
@@ -46,12 +47,14 @@ function preflight() {
 }
 
 async function main() {
+  acquireLock(); // قبل أي اتصال: نسخة واحدة فقط
   preflight();
 
   const wa = new WhatsAppClient();
   const pipeline = new Pipeline(wa);
 
   wa.on('message', (msg) => pipeline.add(msg));
+  wa.on('replaced', () => process.exit(1));
   wa.on('ready', () => pipeline.startDigestTimer());
 
   await wa.start();
