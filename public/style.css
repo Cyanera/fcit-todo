@@ -612,3 +612,29 @@ h1 {
   border-radius: 2px;
   will-change: transform, opacity;
 }
+
+/* ── ترويسة الرسالة الأصلية: المرسل والوقت ──────────────────── */
+.src-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  margin-top: 8px;
+  padding-inline-start: 2px;
+}
+
+.src-who {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.src-when {
+  font-size: 0.72rem;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+details.src blockquote {
+  margin-top: 6px;
+}

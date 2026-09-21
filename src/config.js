@@ -22,7 +22,9 @@ export const config = {
   root,
   dataDir: path.join(root, 'data'),
   authDir: path.join(root, 'data', 'wa-auth'),
-  dbPath: path.join(root, 'data', 'tasks.db'),
+  // DB_PATH يسمح بتشغيل نسخة على قاعدة منفصلة — للاختبار دون المساس
+  // بقاعدة النسخة العاملة، فحذف ملفها تحت رجل عملية شغّالة يفقد كتاباتها.
+  dbPath: process.env.DB_PATH || path.join(root, 'data', 'tasks.db'),
 
   anthropicKey: process.env.ANTHROPIC_API_KEY,
   model: process.env.CLAUDE_MODEL || 'claude-opus-5',

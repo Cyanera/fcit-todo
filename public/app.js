@@ -58,6 +58,15 @@ const esc = (s) =>
 
 const todayISO = () => new Date().toLocaleDateString('en-CA');
 
+/** وقت الإرسال كاملًا: اليوم والتاريخ والساعة. */
+function fullTime(ts) {
+  if (!ts) return '';
+  return new Date(ts).toLocaleString('ar', {
+    weekday: 'long', day: 'numeric', month: 'long',
+    hour: '2-digit', minute: '2-digit', hour12: true,
+  });
+}
+
 function relativeTime(ts) {
   if (!ts) return '';
   const mins = Math.round((Date.now() - ts) / 60000);
@@ -99,7 +108,14 @@ function card(t) {
       <div class="meta">${chips.join('')}</div>
       ${
         t.source_text
-          ? `<details class="src"><summary>الرسالة الأصلية</summary><blockquote>${esc(t.source_text)}</blockquote></details>`
+          ? `<details class="src">
+               <summary>الرسالة الأصلية</summary>
+               <div class="src-head">
+                 <span class="src-who">${esc(t.requester || 'مجهول')}</span>
+                 <span class="src-when">${esc(fullTime(t.source_ts))}</span>
+               </div>
+               <blockquote>${esc(t.source_text)}</blockquote>
+             </details>`
           : ''
       }
     </article>`;
@@ -191,6 +207,7 @@ function sprinkles(x, y) {
 listEl.addEventListener('click', async (e) => {
   const btn = e.target.closest('[data-act]');
   if (!btn) return;
+
   const cardEl = btn.closest('.card');
   const id = cardEl.dataset.id;
   const act = btn.dataset.act;
