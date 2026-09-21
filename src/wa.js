@@ -13,6 +13,10 @@ import qrcode from 'qrcode-terminal';
 import pino from 'pino';
 import { config } from './config.js';
 import { installSendGuard } from './guard.js';
+import { silenceSignalKeyDumps } from './quiet.js';
+
+// يُركَّب عند تحميل الوحدة: كل نقاط الدخول تتصل بواتساب عبرها
+silenceSignalKeyDumps();
 
 const logger = pino({ level: 'silent' });
 

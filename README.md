@@ -147,8 +147,8 @@ npm start
   <key>WorkingDirectory</key><string>/المسار/الكامل/whatsapp-tasks</string>
   <key>RunAtLoad</key><true/>
   <key>KeepAlive</key><true/>
-  <key>StandardOutPath</key><string>/tmp/whatsapp-tasks.log</string>
-  <key>StandardErrorPath</key><string>/tmp/whatsapp-tasks.err</string>
+  <key>StandardOutPath</key><string>/المسار/الكامل/whatsapp-tasks/data/run.log</string>
+  <key>StandardErrorPath</key><string>/المسار/الكامل/whatsapp-tasks/data/run.err</string>
 </dict>
 </plist>
 ```
@@ -160,6 +160,9 @@ launchctl load ~/Library/LaunchAgents/com.local.whatsapp-tasks.plist
 ```
 
 استبدل `/usr/local/bin/node` بمخرج `which node` عندك.
+
+> **لا تضع ملفات السجل في `/tmp`** — أي مستخدم على الجهاز يقرؤها. وضعها داخل
+> `data/` يبقيها ضمن صلاحيات حسابك ومستثناة من Git.
 
 > **انتبه:** الماك لما ينام ينقطع الاتصال بواتساب وتفوتك رسائل تلك الفترة.
 > لو تبغى تغطية كاملة، شغّل `caffeinate -s` أو انقل المشروع لسيرفر صغير.
@@ -185,6 +188,12 @@ grep -rn "sendMessage" src/
 نفس آلية WhatsApp Web. هذا خارج شروط استخدام واتساب، والخطر الواقعي هو احتمال حظر
 الرقم. البوت هنا **قارئ بشكل أساسي** ولا يرسل إلا لمحادثتك مع نفسك، وهذا يقلل
 الخطر كثيرًا لكنه لا يلغيه. لا تستخدمه على رقم لا تتحمّل فقدانه.
+
+**لا تُطبع مفاتيح التشفير.** مكتبة `libsignal` التي تعتمد عليها Baileys تطبع
+كائن الجلسة كاملًا — ومعه `privKey` و`rootKey` نصًّا صريحًا — عند أحداث بروتوكول
+روتينية. `src/quiet.js` يرشّح هذه الرسائل تحديدًا عند مستوى `console`، لأن
+المكتبة لا تقبل logger مخصصًا لها وتعديل `node_modules` يضيع مع أول تثبيت.
+بدون هذا الترشيح كانت المفاتيح تُكتب في ملف السجل عند التشغيل عبر launchd.
 
 **خصوصية أعضاء القروب.** رسائل القروب تُخزّن محليًا في `data/tasks.db`، ونصوص الدفعات
 تُرسل لـ Claude للتصنيف. المجلد كامل مستثنى من Git. انتبه لهذا قبل ما تشغّله على
@@ -236,4 +245,5 @@ grep -rn "sendMessage" src/
 | `src/server.js` | واجهة REST للوحة |
 | `public/` | اللوحة |
 | `src/guard.js` | حارس يمنع الإرسال لأي قروب أو شخص |
+| `src/quiet.js` | يمنع طباعة مفاتيح التشفير في السجل |
 | `test/` | اختبارات القواعد والحارس |

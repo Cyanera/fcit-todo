@@ -77,3 +77,18 @@ test('يرفض الوجهات غير الصالحة', async () => {
     await assert.rejects(() => sock.sendMessage(jid, { text: 'x' }), BlockedSendError);
   }
 });
+
+test('لا تُطبع مفاتيح التشفير في السجل', async () => {
+  const { isKeyDump } = await import('../src/quiet.js');
+  // ما تطبعه libsignal فعلًا عند أحداث البروتوكول
+  for (const m of [
+    'Closing session:', 'Opening session:', 'Session already closed',
+    'Removing old closed session:', 'Migrating session to:',
+  ]) {
+    assert.ok(isKeyDump(m), `كان المفروض يُكتم: ${m}`);
+  }
+  // ولا نكتم رسائلنا ولا الأخطاء الحقيقية
+  for (const m of ['✅ متصل بواتساب', '⚠️ انقطع الاتصال', 'Error: something broke']) {
+    assert.equal(isKeyDump(m), false, `كُتم خطأً: ${m}`);
+  }
+});
