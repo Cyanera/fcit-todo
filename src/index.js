@@ -8,8 +8,13 @@ function preflight() {
 
   if (mode === 'rules') {
     console.log('\n🔤 وضع القواعد — بدون Claude وبدون أي تكلفة.');
-    console.log('   يلتقط الرسائل الموجّهة لك (منشن / رد عليك / نداء باسمك)');
-    console.log('   والتي فيها إشارة طلب واضحة. الطلبات غير المباشرة راح تفوته.');
+    console.log('   يلتقط أي رسالة فيها إشارة طلب، جماعية كانت أو باسمك.');
+    console.log(
+      `   يستبعد ما هو موجّه لزميل بالاسم${
+        config.otherNames.length ? ` (${config.otherNames.length} اسمًا مضبوطًا)` : ' — OTHER_NAMES فاضي'
+      }، والتحيات والشكر.`,
+    );
+    console.log('   يفوته الطلب الضمني بلا صيغة طلب واضحة.');
     if (!hasRealKey()) {
       console.log('   أضف ANTHROPIC_API_KEY في .env وينتقل للتصنيف الذكي تلقائيًا.');
     }
