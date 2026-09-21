@@ -36,6 +36,7 @@ themeEl.addEventListener('click', () => {
 applyTheme(readTheme());
 
 let filter = 'open';
+let groupFilter = 'all';
 
 const PRIORITY = {
   urgent: 'عاجل',
@@ -121,6 +122,34 @@ function card(t) {
     </article>`;
 }
 
+/** شرائح تصفية حسب القروب — تظهر فقط عند وجود أكثر من قروب. */
+function renderGroupFilter(tasks) {
+  const el = document.getElementById('groups');
+  const names = [...new Set(tasks.map((t) => t.chat_name).filter(Boolean))].sort();
+
+  if (names.length < 2) {
+    el.hidden = true;
+    groupFilter = 'all';
+    return;
+  }
+  el.hidden = false;
+
+  const counts = Object.fromEntries(
+    names.map((n) => [n, tasks.filter((t) => t.chat_name === n).length]),
+  );
+  // لو اختفى القروب المحدد من النتائج، نرجع للكل
+  if (groupFilter !== 'all' && !names.includes(groupFilter)) groupFilter = 'all';
+
+  el.innerHTML =
+    `<button class="gchip ${groupFilter === 'all' ? 'is-active' : ''}" data-group="all">الكل (${tasks.length})</button>` +
+    names
+      .map(
+        (n) =>
+          `<button class="gchip ${groupFilter === n ? 'is-active' : ''}" data-group="${esc(n)}">${esc(n)} (${counts[n]})</button>`,
+      )
+      .join('');
+}
+
 async function refresh() {
   try {
     const [tasksRes, statusRes] = await Promise.all([
@@ -130,8 +159,13 @@ async function refresh() {
 
     const { tasks, counts } = tasksRes;
 
-    listEl.innerHTML = tasks.length
-      ? tasks.map(card).join('')
+    renderGroupFilter(tasks);
+    const shown = groupFilter === 'all'
+      ? tasks
+      : tasks.filter((t) => (t.chat_name || 'بلا قروب') === groupFilter);
+
+    listEl.innerHTML = shown.length
+      ? shown.map(card).join('')
       : `<div class="empty"><p>${
           filter === 'open' ? 'ما فيه مهام مفتوحة 🎉' : 'لا يوجد شيء هنا'
         }</p></div>`;
@@ -289,6 +323,13 @@ addForm.addEventListener('submit', async (e) => {
     addError.textContent = 'الخادم غير متاح';
     addError.hidden = false;
   }
+});
+
+document.getElementById('groups').addEventListener('click', (e) => {
+  const chip = e.target.closest('[data-group]');
+  if (!chip) return;
+  groupFilter = chip.dataset.group;
+  refresh();
 });
 
 tabsEl.addEventListener('click', (e) => {

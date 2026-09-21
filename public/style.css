@@ -638,3 +638,41 @@ h1 {
 details.src blockquote {
   margin-top: 6px;
 }
+
+/* ── تصفية حسب القروب (تظهر عند مراقبة أكثر من قروب) ────────── */
+.groups {
+  max-width: 820px;
+  margin: 0 auto 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.groups[hidden] {
+  display: none;
+}
+
+.gchip {
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 500;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-dim);
+  border-radius: 999px;
+  padding: 5px 13px;
+  cursor: pointer;
+  transition: 0.15s;
+}
+
+.gchip:hover {
+  color: var(--text);
+  border-color: var(--text-faint);
+}
+
+.gchip.is-active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--bg);
+  font-weight: 700;
+}

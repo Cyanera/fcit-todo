@@ -44,16 +44,30 @@ export class Pipeline {
     this.timer = null;
 
     if (this.busy || !this.buffer.length) return;
-    const batch = this.buffer.splice(0, this.buffer.length);
+    const drained = this.buffer.splice(0, this.buffer.length);
     this.busy = true;
 
+    // نفصل الدفعة حسب القروب: الخلط يُفسد نسبة المهمة لقروبها، ويُفسد
+    // السياق الذي يُبنى من رسائل القروب نفسه. يظهر هذا فقط عند مراقبة
+    // أكثر من قروب، فالرسائل تتداخل زمنيًا في دفعة واحدة.
+    const byChat = new Map();
+    for (const m of drained) {
+      if (!byChat.has(m.chatJid)) byChat.set(m.chatJid, []);
+      byChat.get(m.chatJid).push(m);
+    }
+
+    const failed = [];
     try {
-      await this.#process(batch);
-    } catch (err) {
-      console.error('❌ فشل تصنيف الدفعة:', err.message);
-      // نرجّع الرسائل للطابور لتُعاد المحاولة مع الدفعة القادمة.
-      this.buffer.unshift(...batch);
+      for (const [, batch] of byChat) {
+        try {
+          await this.#process(batch);
+        } catch (err) {
+          console.error(`❌ فشل تصنيف دفعة (${batch[0].chatName}):`, err.message);
+          failed.push(...batch); // نُعيد قروبًا واحدًا للطابور لا الجميع
+        }
+      }
     } finally {
+      if (failed.length) this.buffer.unshift(...failed);
       this.busy = false;
       if (this.buffer.length) this.timer = setTimeout(() => this.flush(), 5000);
     }
