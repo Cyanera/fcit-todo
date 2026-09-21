@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import path from 'node:path';
 import { EventEmitter } from 'node:events';
 import makeWASocket, {
   useMultiFileAuthState,
@@ -57,6 +58,34 @@ function contextOf(message) {
   return m?.extendedTextMessage?.contextInfo || m?.imageMessage?.contextInfo || null;
 }
 
+/**
+ * إيقاف العملية أثناء كتابة creds.json يتركه مبتورًا أو فارغًا، فتبدأ
+ * الجلسة من الصفر وتطلب رمز QR بلا تفسير. نكشف ذلك ونقوله صراحة.
+ */
+function assertAuthNotCorrupt() {
+  const credsPath = path.join(config.authDir, 'creds.json');
+  if (!fs.existsSync(credsPath)) return; // أول تشغيل — طبيعي
+
+  const { size } = fs.statSync(credsPath);
+  let valid = size > 0;
+  if (valid) {
+    try {
+      JSON.parse(fs.readFileSync(credsPath, 'utf8'));
+    } catch {
+      valid = false;
+    }
+  }
+  if (valid) return;
+
+  console.error(
+    '\n❌ ملف جلسة واتساب تالف (creds.json فارغ أو غير صالح).\n' +
+      '   يحدث هذا إذا أُوقفت العملية بالقوة أثناء حفظ الجلسة.\n' +
+      '   الحل — احذف الجلسة وأعد الربط مرة واحدة:\n\n' +
+      '     rm -rf data/wa-auth && npm run login\n',
+  );
+  process.exit(1);
+}
+
 export class WhatsAppClient extends EventEmitter {
   constructor() {
     super();
@@ -69,6 +98,7 @@ export class WhatsAppClient extends EventEmitter {
 
   async start() {
     fs.mkdirSync(config.authDir, { recursive: true });
+    assertAuthNotCorrupt();
     const { state, saveCreds } = await useMultiFileAuthState(config.authDir);
     const { version } = await fetchLatestBaileysVersion();
 
