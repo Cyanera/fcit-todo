@@ -113,6 +113,44 @@ test('يفهم صيغ الأمر المؤنثة', () => {
   assert.ok(run('الجميع يجهز الملفات'));
 });
 
+test('يفهم العاميّة الخليجية وصيغة المصدر', () => {
+  // حالات حقيقية من تجربة المستخدمة — كانت كلها تفوت
+  assert.ok(run('ارسل الصور قبل يوم الخميس'));
+  assert.ok(run('جيب المقاضي من البقالة اليوم'), '«جيب» عاميّة كانت ناقصة');
+  assert.ok(run('تعبئة هذا الرابط عاجلا :'), 'الطلب مصدرًا لا فعلًا');
+});
+
+test('لا يلتقط الكلمات الملتبسة بالعاميّة', () => {
+  // «روح» و«زور» و«حول» و«وصل» أُزيلت لأن معانيها العادية أشيع من الطلب
+  for (const body of [
+    'روح الفريق عالية',
+    'شهادة زور ما نقبلها',
+    'حول هذا الموضوع عندي ملاحظة',
+    'وصل الملف شكرًا',
+    'الود موجود بيننا',
+  ]) {
+    assert.equal(run(body), null, `إيجابية كاذبة: ${body}`);
+  }
+});
+
+test('يتجاهل رسائلك أنت إلا بتفعيل INCLUDE_OWN_MESSAGES', async () => {
+  // config كائن مشترك، وإعادة استيراد rules.js لا تُنشئ نسخة جديدة منه،
+  // فنبدّل القيمة عليه مباشرة — وهذا يختبر المسار الفعلي نفسه
+  const { config } = await import('../src/config.js');
+  const own = { sender_name: 'أنا', fromMe: true, isMention: false, quotedFromMe: false,
+                body: 'ارسل الصور قبل يوم الخميس' };
+
+  assert.equal(config.includeOwnMessages, false, 'الافتراضي معطّل');
+  assert.equal(extractByRules({ messages: [own] }).tasks.length, 0, 'الافتراضي يتجاهلها');
+
+  config.includeOwnMessages = true;
+  try {
+    assert.equal(extractByRules({ messages: [own] }).tasks.length, 1, 'بالتفعيل تُلتقط');
+  } finally {
+    config.includeOwnMessages = false;
+  }
+});
+
 test('يحوّل المواعيد النسبية إلى تواريخ فعلية', () => {
   const today = new Intl.DateTimeFormat('en-CA', {
     timeZone: process.env.TZ || 'Asia/Riyadh',

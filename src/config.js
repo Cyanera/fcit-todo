@@ -32,6 +32,10 @@ export const config = {
   mode: (process.env.MODE || 'auto').toLowerCase(),
   ruleKeywords: list(process.env.RULE_KEYWORDS),
 
+  // رسائلك أنت ليست طلبات عليك عادةً، لكن تفعيلها مفيد للتجربة وحدك
+  // في قروب اختبار، أو لمن يكتب مهامه بنفسه في القروب.
+  includeOwnMessages: bool(process.env.INCLUDE_OWN_MESSAGES, false),
+
   myNames: list(process.env.MY_NAMES),
   otherNames: list(process.env.OTHER_NAMES),
   myNumber: (process.env.MY_NUMBER || '').replace(/\D/g, ''),
