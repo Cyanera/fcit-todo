@@ -118,6 +118,16 @@ const stmts = {
       SUM(status = 'done')  AS done,
       SUM(status = 'open' AND priority = 'urgent') AS urgent
     FROM tasks`),
+  unprocessed: db.prepare(`
+    SELECT * FROM messages
+    WHERE processed = 0 AND ts > ?
+    ORDER BY ts ASC`),
+  latestTaskInChat: db.prepare(`
+    SELECT id, details, source_ts FROM tasks
+    WHERE chat_jid = ? AND status = 'open'
+    ORDER BY source_ts DESC LIMIT 1`),
+  appendDetails: db.prepare(`UPDATE tasks SET details = ? WHERE id = ?`),
+
   getMeta: db.prepare(`SELECT value FROM meta WHERE key = ?`),
   setMeta: db.prepare(`INSERT INTO meta (key, value) VALUES (?, ?)
                        ON CONFLICT(key) DO UPDATE SET value = excluded.value`),
@@ -169,6 +179,30 @@ export const store = {
   markNotified: (id) => stmts.markNotified.run(id),
   openTasksForDigest: () => stmts.openTasksForDigest.all(),
   counts: () => stmts.counts.get(),
+  /**
+   * يُلحق روابط بآخر مهمة في القروب إن كانت قريبة زمنيًا.
+   * المحتوى المحوّل يصل على رسالتين — النص ثم الرابط — وقد تفصلهما حدود
+   * الدفعة، فنصل الرابط بسابقته بدل أن نصنع منه مهمة بلا معنى.
+   * يرجّع id المهمة، أو null إذا لم توجد سابقة قريبة.
+   */
+  /**
+   * رسائل حُفظت ولم تُعالَج — يحدث إذا توقف البوت بين الحفظ والمعالجة.
+   * نحدّها بمدة حتى لا نستأنف سجلًا قديمًا عند أول تشغيل بعد انقطاع طويل.
+   */
+  unprocessedMessages: (withinMs = 24 * 60 * 60 * 1000) =>
+    stmts.unprocessed.all(Date.now() - withinMs),
+
+  attachLinks(chatJid, links, withinMs = 15 * 60 * 1000) {
+    if (!links.length) return null;
+    const latest = stmts.latestTaskInChat.get(chatJid);
+    if (!latest || Date.now() - latest.source_ts > withinMs) return null;
+
+    const existing = (latest.details || '').split('\n').filter(Boolean);
+    const merged = [...new Set([...existing, ...links])].join('\n');
+    if (merged !== (latest.details || '')) stmts.appendDetails.run(merged, latest.id);
+    return latest.id;
+  },
+
   getMeta: (k) => stmts.getMeta.get(k)?.value ?? null,
   setMeta: (k, v) => stmts.setMeta.run(k, String(v)),
 };

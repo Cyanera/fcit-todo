@@ -60,7 +60,10 @@ async function main() {
 
   wa.on('message', (msg) => pipeline.add(msg));
   wa.on('replaced', () => process.exit(1));
-  wa.on('ready', () => pipeline.startDigestTimer());
+  wa.on('ready', () => {
+    pipeline.startDigestTimer();
+    pipeline.resumePending();
+  });
 
   await wa.start();
   await startServer({ wa, pipeline });

@@ -445,9 +445,18 @@ function addressedToOther(text, myNames) {
  * وضع صندوق الوارد: كل رسالة مهمة بحكم وصولها — المستخدمة حوّلتها بنفسها.
  * لا نخمّن «هل هذا طلب؟»، بل نستخلص: ما المطلوب، وروابطه، وموعده.
  */
+/** هل الرسالة روابط وحدها بلا نص ذي معنى؟ */
+function isLinkOnly(raw, links) {
+  if (!links.length) return false;
+  const rest = links.reduce((s, u) => s.replace(u, ' '), raw);
+  // ما تبقّى بعد نزع الروابط: علامات أو كلمة إشارة قصيرة («الرابط:»)
+  return normalize(rest).length <= 12;
+}
+
 function extractInbox(messages) {
   const titleNames = [...config.myNames].sort((a, b) => b.length - a.length);
   const tasks = [];
+  const orphanLinks = []; // روابط وصلت قبل أي مهمة في هذه الدفعة
 
   messages.forEach((msg, index) => {
     const raw = (msg.body ?? '').trim();
@@ -456,6 +465,18 @@ function extractInbox(messages) {
 
     const text = normalize(raw);
     const links = extractLinks(raw);
+
+    // المحتوى المحوّل يصل كثيرًا على رسالتين: النص ثم الرابط وحده.
+    // الرابط المفرد تكملةٌ لما قبله لا مهمة مستقلة.
+    if (isLinkOnly(raw, links)) {
+      const previous = tasks[tasks.length - 1];
+      if (previous) {
+        previous.details = [previous.details, ...links].filter(Boolean).join('\n');
+      } else {
+        orphanLinks.push(...links); // سابقتها في دفعة مضت — يتولّاها الـ pipeline
+      }
+      return;
+    }
     const due = extractDue(text, raw);
 
     let priority = 'normal';
@@ -479,7 +500,7 @@ function extractInbox(messages) {
     });
   });
 
-  return { tasks, usage: null, mode: 'inbox' };
+  return { tasks, orphanLinks, usage: null, mode: 'inbox' };
 }
 
 export function extractByRules({ messages }) {

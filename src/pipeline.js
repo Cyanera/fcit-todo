@@ -39,6 +39,38 @@ export class Pipeline {
     }
   }
 
+  /**
+   * يستأنف الرسائل التي حُفظت ولم تُعالَج قبل توقف سابق.
+   * الحفظ يسبق المعالجة عمدًا، فلو مات البوت بينهما بقيت الرسالة محفوظة
+   * وحدها بلا مهمة. هذه الدالة تسترجعها عند الإقلاع.
+   */
+  resumePending() {
+    const rows = store.unprocessedMessages();
+    const wanted = config.groupJids.length
+      ? rows.filter((r) => config.groupJids.includes(r.chat_jid))
+      : rows;
+    if (!wanted.length) return 0;
+
+    console.log(`↻ استئناف ${wanted.length} رسالة حُفظت ولم تُعالَج.`);
+    for (const r of wanted) {
+      this.buffer.push({
+        id: r.id,
+        chatJid: r.chat_jid,
+        chatName: r.chat_name,
+        senderJid: r.sender_jid,
+        senderName: r.sender_name,
+        body: r.body,
+        quoted: null,
+        quotedFromMe: false,
+        isMention: false,
+        fromMe: false,
+        ts: r.ts,
+      });
+    }
+    this.flush();
+    return wanted.length;
+  }
+
   async flush() {
     clearTimeout(this.timer);
     this.timer = null;
@@ -123,6 +155,26 @@ export class Pipeline {
     if (result.refused) {
       console.warn(`⚠️  رُفضت دفعة (${result.refused}) — تم تخطيها.`);
       return;
+    }
+
+    // روابط يتيمة: سابقتها في دفعة مضت، فنصلها بآخر مهمة في القروب
+    if (result.orphanLinks?.length) {
+      const attachedTo = store.attachLinks(chatJid, result.orphanLinks);
+      if (attachedTo) {
+        console.log(`🔗 أُلحق ${result.orphanLinks.length} رابطًا بمهمة سابقة.`);
+      } else if (!result.tasks.length) {
+        // لا سابقة قريبة — لا نُضيّع الرابط
+        store.addTask({
+          chat_jid: chatJid,
+          chat_name: batch[0].chatName,
+          title: 'رابط بلا سياق — راجعيه',
+          details: result.orphanLinks.join('\n'),
+          source_text: batch.map((m) => m.body).join('\n'),
+          source_ts: batch[0].ts,
+          confidence: 1,
+        }, { skipDedup: true });
+        console.log('🔗 رابط بلا سابقة — سُجّل كمهمة للمراجعة.');
+      }
     }
 
     const created = [];

@@ -124,6 +124,16 @@ export class WhatsAppClient extends EventEmitter {
     this.sock.ev.on('creds.update', saveCreds);
     this.sock.ev.on('connection.update', (u) => this.#onConnection(u));
     this.sock.ev.on('messages.upsert', (u) => this.#onMessages(u));
+
+    // اسم القروب مخزّن مؤقتًا؛ بدون هذا يبقى الاسم القديم حتى إعادة التشغيل
+    this.sock.ev.on('groups.update', (updates) => {
+      for (const g of updates) {
+        if (g.id && g.subject) {
+          this.groupNames.set(g.id, g.subject);
+          console.log(`✏️  تغيّر اسم القروب إلى: ${g.subject}`);
+        }
+      }
+    });
     return this;
   }
 
