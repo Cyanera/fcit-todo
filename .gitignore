@@ -13,3 +13,4 @@ public/fonts/*.woff2
 
 .DS_Store
 npm-debug.log*
+recurring.json

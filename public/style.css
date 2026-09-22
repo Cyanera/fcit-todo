@@ -807,3 +807,42 @@ details.src blockquote {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
 }
+
+/* ── سكشن المهام الدورية ────────────────────────────────────── */
+.recurring {
+  max-width: 820px;
+  margin: 0 auto 28px;
+}
+
+.recurring[hidden] {
+  display: none;
+}
+
+.section-title {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-dim);
+  margin: 0 0 12px;
+  padding-inline-start: 2px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* خط يمتد بعد العنوان ليفصل السكشن بصريًا */
+.section-title::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+/* المهام الدورية أخفت من الواردة — جدول معروف لا مفاجأة فيه */
+.recurring .card {
+  background: var(--surface-2);
+}
+
+.recurring .card::before {
+  opacity: 0.55;
+}

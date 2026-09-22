@@ -107,6 +107,10 @@ const stmts = {
     INSERT INTO dismissed (norm_title, chat_jid, deleted_at) VALUES (?, ?, ?)
     ON CONFLICT(norm_title, chat_jid) DO UPDATE SET deleted_at = excluded.deleted_at`),
   getTaskRow: db.prepare(`SELECT norm_title, chat_jid FROM tasks WHERE id = ?`),
+  // المهمة الدورية تتكرر بنفس العنوان أسبوعيًا، فالتاريخ جزء من هويتها
+  findRecurring: db.prepare(`
+    SELECT 1 FROM tasks
+    WHERE norm_title = ? AND due_date = ? AND source = 'recurring' LIMIT 1`),
   listTasks: db.prepare(`
     SELECT * FROM tasks
     WHERE (@status = 'all' OR status = @status)
@@ -189,6 +193,8 @@ export const store = {
     });
     return info.lastInsertRowid;
   },
+
+  hasRecurring: (normTitle, dueDate) => !!stmts.findRecurring.get(normTitle, dueDate),
 
   listTasks: (status = 'open') => stmts.listTasks.all({ status }),
   setStatus: (id, status) =>

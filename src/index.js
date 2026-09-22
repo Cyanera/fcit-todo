@@ -4,6 +4,7 @@ import { Pipeline } from './pipeline.js';
 import { startServer } from './server.js';
 import { acquireLock } from './lock.js';
 import { watchSourceFreshness } from './freshness.js';
+import { startRecurring, loadSchedule } from './recurring.js';
 
 function preflight() {
   const mode = activeMode();
@@ -69,6 +70,14 @@ async function main() {
   await wa.start();
   await startServer({ wa, pipeline });
   watchSourceFreshness();
+
+  const schedule = loadSchedule();
+  if (schedule) {
+    console.log(
+      `🔁 مهام دورية: ${schedule.tasks.length} مادة، تُضاف قبل موعدها بـ${schedule.leadDays} يوم.`,
+    );
+    startRecurring();
+  }
 
   const shutdown = async () => {
     console.log('\n⏹️  إيقاف... معالجة ما تبقّى في الطابور.');

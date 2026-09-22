@@ -156,6 +156,17 @@ function card(t) {
     </article>`;
 }
 
+/** سكشن المهام الدورية — يظهر فقط عند وجود مهام فيه. */
+function renderRecurring(tasks) {
+  const section = document.getElementById('recurring');
+  section.hidden = tasks.length === 0;
+  if (!tasks.length) return;
+
+  // الأقرب موعدًا أولًا
+  const sorted = [...tasks].sort((a, b) => (a.due_date ?? '').localeCompare(b.due_date ?? ''));
+  document.getElementById('recurringList').innerHTML = sorted.map(card).join('');
+}
+
 /** شرائح تصفية حسب القروب — تظهر فقط عند وجود أكثر من قروب. */
 function renderGroupFilter(tasks) {
   const el = document.getElementById('groups');
@@ -193,10 +204,15 @@ async function refresh() {
 
     const { tasks, counts } = tasksRes;
 
-    renderGroupFilter(tasks);
+    // المهام الدورية لها سكشن خاص — جدول ثابت لا وارد من القروب
+    const recurring = tasks.filter((t) => t.source === 'recurring');
+    const incoming = tasks.filter((t) => t.source !== 'recurring');
+    renderRecurring(recurring);
+
+    renderGroupFilter(incoming);
     const shown = groupFilter === 'all'
-      ? tasks
-      : tasks.filter((t) => (t.chat_name || 'بلا قروب') === groupFilter);
+      ? incoming
+      : incoming.filter((t) => (t.chat_name || 'بلا قروب') === groupFilter);
 
     listEl.innerHTML = shown.length
       ? shown.map(card).join('')
@@ -272,7 +288,7 @@ function sprinkles(x, y) {
   setTimeout(() => layer.remove(), 1600);
 }
 
-listEl.addEventListener('click', async (e) => {
+document.addEventListener('click', async (e) => {
   const btn = e.target.closest('[data-act]');
   if (!btn) return;
 
@@ -370,7 +386,7 @@ addForm.addEventListener('submit', async (e) => {
   }
 });
 
-listEl.addEventListener('submit', async (e) => {
+document.addEventListener('submit', async (e) => {
   const form = e.target.closest('[data-edit]');
   if (!form) return;
   e.preventDefault();
@@ -389,7 +405,7 @@ listEl.addEventListener('submit', async (e) => {
   refresh();
 });
 
-listEl.addEventListener('keydown', (e) => {
+document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && e.target.closest('[data-edit]')) {
     e.target.closest('.card').classList.remove('is-editing');
   }
