@@ -156,16 +156,35 @@ function card(t) {
     </article>`;
 }
 
-/** سكشن المهام الدورية — يظهر فقط عند وجود مهام فيه. */
+/**
+ * سكشن المهام الدورية — أسفل القائمة وقابل للطيّ.
+ * جدول ثابت معروف سلفًا، فمكانه تحت الوارد من القروب لا فوقه،
+ * وحالة الطيّ محفوظة لكل متصفح.
+ */
 function renderRecurring(tasks) {
   const section = document.getElementById('recurring');
   section.hidden = tasks.length === 0;
   if (!tasks.length) return;
 
+  document.getElementById('recurringCount').textContent = tasks.length;
+
   // الأقرب موعدًا أولًا
   const sorted = [...tasks].sort((a, b) => (a.due_date ?? '').localeCompare(b.due_date ?? ''));
   document.getElementById('recurringList').innerHTML = sorted.map(card).join('');
 }
+
+/* حالة الطيّ محفوظة — لا نُعيد فتح ما طوته المستخدمة كل تحديث */
+(() => {
+  const section = document.getElementById('recurring');
+  try {
+    section.open = localStorage.getItem('recurringOpen') !== 'false';
+  } catch {}
+  section.addEventListener('toggle', () => {
+    try {
+      localStorage.setItem('recurringOpen', String(section.open));
+    } catch {}
+  });
+})();
 
 /** شرائح تصفية حسب القروب — تظهر فقط عند وجود أكثر من قروب. */
 function renderGroupFilter(tasks) {

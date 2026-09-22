@@ -81,12 +81,16 @@
 
     <nav class="groups" id="groups" hidden></nav>
 
-    <section class="recurring" id="recurring" hidden>
-      <h2 class="section-title">مهام دورية</h2>
-      <div class="list" id="recurringList"></div>
-    </section>
 
     <main id="list" class="list" aria-live="polite"></main>
+
+    <details class="recurring" id="recurring" hidden open>
+      <summary class="section-title">
+        <span>مهام دورية</span>
+        <span class="section-count" id="recurringCount"></span>
+      </summary>
+      <div class="list" id="recurringList"></div>
+    </details>
 
     <footer class="foot" id="foot"></footer>
 
