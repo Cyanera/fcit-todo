@@ -8,7 +8,8 @@
     "start": "node src/index.js",
     "login": "node src/login.js",
     "groups": "node src/groups.js",
-    "test": "node --test \"test/**/*.test.mjs\""
+    "test": "node --test \"test/**/*.test.mjs\"",
+    "reprocess": "node src/reprocess.js"
   },
   "engines": {
     "node": ">=20"
