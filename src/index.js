@@ -3,6 +3,7 @@ import { WhatsAppClient } from './wa.js';
 import { Pipeline } from './pipeline.js';
 import { startServer } from './server.js';
 import { acquireLock } from './lock.js';
+import { watchSourceFreshness } from './freshness.js';
 
 function preflight() {
   const mode = activeMode();
@@ -67,6 +68,7 @@ async function main() {
 
   await wa.start();
   await startServer({ wa, pipeline });
+  watchSourceFreshness();
 
   const shutdown = async () => {
     console.log('\n⏹️  إيقاف... معالجة ما تبقّى في الطابور.');
