@@ -41,6 +41,14 @@ export const config = {
   // في قروب اختبار، أو لمن يكتب مهامه بنفسه في القروب.
   includeOwnMessages: bool(process.env.INCLUDE_OWN_MESSAGES, false),
 
+  /**
+   * وضع صندوق الوارد: القروب المراقَب ليس قروب عمل بل صندوق تحوّل إليه
+   * الرسائل يدويًا. كل رسالة تصل = مهمة بحكم وصولها، فلا حاجة لتخمين
+   * «هل هذا طلب؟». العمل كله يصير استخلاصًا: ما المطلوب، وما روابطه،
+   * وما موعده. يتضمن رسائلك أنت لأن التحويل يأتي منك.
+   */
+  inboxMode: bool(process.env.INBOX_MODE, false),
+
   myNames: list(process.env.MY_NAMES),
   otherNames: list(process.env.OTHER_NAMES),
   myNumber: (process.env.MY_NUMBER || '').replace(/\D/g, ''),

@@ -7,7 +7,12 @@ import { acquireLock } from './lock.js';
 function preflight() {
   const mode = activeMode();
 
-  if (mode === 'rules') {
+  if (config.inboxMode) {
+    console.log('\n📥 وضع صندوق الوارد — كل رسالة تصل = مهمة.');
+    console.log('   حوِّلي رسائل القروبات الرسمية إلى هذا القروب، والبوت');
+    console.log('   يستخلص المطلوب والروابط وموعد التسليم. لا يقرأ أي قروب آخر.');
+    console.log('   الاستثناء الوحيد: رسالة فارغة أو إيموجي وحده.');
+  } else if (mode === 'rules') {
     console.log('\n🔤 وضع القواعد — بدون Claude وبدون أي تكلفة.');
     console.log('   يلتقط أي رسالة فيها إشارة طلب، جماعية كانت أو باسمك.');
     console.log(

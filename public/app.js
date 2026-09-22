@@ -79,6 +79,14 @@ function relativeTime(ts) {
   return days === 1 ? 'أمس' : `قبل ${days} يوم`;
 }
 
+/** يحوّل الروابط في الوصف إلى وصلات قابلة للنقر — بعد الهروب دائمًا. */
+function linkify(text) {
+  return esc(text).replace(
+    /https?:\/\/[^\s<]+/g,
+    (u) => `<a href="${u}" target="_blank" rel="noopener noreferrer">${u}</a>`,
+  );
+}
+
 function card(t) {
   const overdue = t.due_date && t.due_date < todayISO() && t.status === 'open';
   const dueLabel = t.due_date || t.due_text;
@@ -105,7 +113,7 @@ function card(t) {
           <button class="btn danger" data-act="delete">حذف</button>
         </div>
       </div>
-      ${t.details ? `<p class="details">${esc(t.details)}</p>` : ''}
+      ${t.details ? `<p class="details">${linkify(t.details)}</p>` : ''}
       <div class="meta">${chips.join('')}</div>
       ${
         t.source_text

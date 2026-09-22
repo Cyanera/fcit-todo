@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 process.env.MY_NAMES = 'عهد,د. عهد,دكتورة عهد,Ahad';
 process.env.OTHER_NAMES = 'خالد,سارة,فهد,منى';
 process.env.MODE = 'rules';
+process.env.INBOX_MODE = 'false'; // لا نرث إعداد .env الحقيقي
 process.env.MIN_CONFIDENCE = '0.6';
 
 const { extractByRules } = await import('../src/rules.js');

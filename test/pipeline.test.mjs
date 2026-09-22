@@ -9,6 +9,7 @@ const tmpDb = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'wt-')), 'test.db'
 process.env.DB_PATH = tmpDb;
 process.env.MY_NAMES = 'عهد';
 process.env.MODE = 'rules';
+process.env.INBOX_MODE = 'false'; // لا نرث إعداد .env الحقيقي
 process.env.NOTIFY_URGENT = 'false';
 
 const { Pipeline } = await import('../src/pipeline.js');

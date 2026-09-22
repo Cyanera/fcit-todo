@@ -70,7 +70,11 @@ export function startServer({ wa, pipeline }) {
       whatsapp: wa.status,
       groups: config.groupJids,
       mode,
-      model: mode === 'rules' ? 'قواعد (بدون تكلفة)' : config.model,
+      model: config.inboxMode
+        ? 'صندوق وارد — كل رسالة مهمة'
+        : mode === 'rules'
+          ? 'قواعد (بدون تكلفة)'
+          : config.model,
       pending: pipeline.buffer.length,
       stats: pipeline.stats,
     });

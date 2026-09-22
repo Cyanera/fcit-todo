@@ -152,6 +152,15 @@ function hasVerb(haystack) {
   });
 }
 
+/**
+ * يستخرج الروابط من نص الرسالة. تعاميم الجامعة كثيرًا ما تحمل رابط
+ * نموذج أو ملف، وهو أول ما يُحتاج عند التنفيذ.
+ */
+export function extractLinks(raw) {
+  const found = raw.match(/https?:\/\/[^\s<>"'\u0600-\u06FF]+/gu) ?? [];
+  return [...new Set(found.map((u) => u.replace(/[.,،؛;:)\]]+$/, '')))];
+}
+
 /** يضيف أيامًا إلى تاريخ YYYY-MM-DD دون التأثر بالمناطق الزمنية. */
 function addDays(isoDate, n) {
   const d = new Date(`${isoDate}T12:00:00Z`);
@@ -238,6 +247,7 @@ const TITLE_PREFIXES = [
   // صيغ التعاميم الرسمية
   'نأمل منكم', 'نامل منكم', 'نأمل', 'نامل', 'نرجو منكم', 'نرجو',
   'يرجى', 'يُرجى', 'يرجي', 'التكرم', 'بضرورة', 'بضروره', 'وعليه',
+  'تعميم', 'إعلان', 'اعلان', 'تنويه', 'للعلم', 'هام', 'مهم',
 ];
 
 /**
@@ -250,6 +260,10 @@ const TAIL_NOISE = [
   'بعد بكرة', 'بعد بكره', 'نهاية الاسبوع', 'نهاية الأسبوع', 'هذا الاسبوع',
   'asap', 'urgent', 'today', 'tomorrow', 'immediately', 'right now',
   'this week', 'next week',
+  // إشارات إلى الرابط — الرابط نفسه صار في الوصف
+  'عبر الرابط', 'على الرابط', 'من خلال الرابط', 'عبر الرابط التالي',
+  'الرابط التالي', 'الرابط أدناه', 'الرابط ادناه', 'التالي', 'أدناه', 'ادناه',
+  'here', 'below', 'at this link', 'via this link', 'link',
 ];
 
 /** يحوّل كلمة إلى نمط يتسامح مع اختلاف الهمزة والتاء المربوطة. */
@@ -304,12 +318,21 @@ function pickRequestSegment(raw) {
 
   if (segments.length <= 1) return raw;
 
-  for (const seg of segments) {
+  const substantive = segments.filter((seg) => {
     const n = normalize(seg);
-    if (has(n, NOISE_SIGNALS) && seg.length < 80) continue; // تحية أو شكر ختامي
+    if (has(n, NOISE_SIGNALS) && seg.length < 80) return false; // تحية أو شكر
+    if (/^https?:\/\//.test(seg.trim())) return false; // سطر رابط وحده
+    return true;
+  });
+
+  // الأفضل: فقرة تحمل إشارة طلب صريحة
+  for (const seg of substantive) {
+    const n = normalize(seg);
     if (has(n, STRONG_SIGNALS) || hasVerb(n) || has(n, extraSignals)) return seg;
   }
-  return raw;
+
+  // وإلا — وهذا حال وضع الوارد حيث لا نبحث عن إشارة — أول فقرة ذات معنى
+  return substantive.find((s) => s.length > 12) ?? substantive[0] ?? raw;
 }
 
 /**
@@ -319,6 +342,7 @@ function pickRequestSegment(raw) {
 function toTitle(rawFull, myNames) {
   const raw = pickRequestSegment(rawFull);
   let cleaned = raw
+    .replace(/https?:\/\/\S+/g, '') // الرابط في الوصف لا في العنوان
     .replace(/@\d+/g, '')
     .replace(/\s+/g, ' ')
     .trim();
@@ -417,7 +441,50 @@ function addressedToOther(text, myNames) {
  * يصنّف دفعة رسائل بالقواعد. نفس شكل مخرجات classifyBatch تمامًا،
  * حتى يقدر الـ pipeline يبدّل بين الوضعين بدون أي فرق في التعامل.
  */
+/**
+ * وضع صندوق الوارد: كل رسالة مهمة بحكم وصولها — المستخدمة حوّلتها بنفسها.
+ * لا نخمّن «هل هذا طلب؟»، بل نستخلص: ما المطلوب، وروابطه، وموعده.
+ */
+function extractInbox(messages) {
+  const titleNames = [...config.myNames].sort((a, b) => b.length - a.length);
+  const tasks = [];
+
+  messages.forEach((msg, index) => {
+    const raw = (msg.body ?? '').trim();
+    // الاستثناء الوحيد: رسالة فارغة أو إيموجي وحده — لا مهمة فيها
+    if (normalize(raw).length < 3) return;
+
+    const text = normalize(raw);
+    const links = extractLinks(raw);
+    const due = extractDue(text, raw);
+
+    let priority = 'normal';
+    if (has(text, URGENT_SIGNALS)) priority = 'urgent';
+    else if (due && (due.date === today() || due.date === addDays(today(), 1))) priority = 'urgent';
+    else if (has(text, HIGH_SIGNALS) || due) priority = 'high';
+
+    // الوصف يحمل ما يلزم للتنفيذ: الروابط أولًا ثم نص الموعد كما ورد
+    // الوصف للروابط وحدها؛ الموعد له شريحته والنص الأصلي بضغطة
+    const details = links.join('\n');
+
+    tasks.push({
+      message_index: index,
+      title: toTitle(raw, titleNames),
+      details,
+      requester: msg.sender_name ?? '',
+      due_date: due?.date ?? '',
+      due_text: due?.text ?? '',
+      priority,
+      confidence: 1, // وصولها للصندوق هو التأكيد
+    });
+  });
+
+  return { tasks, usage: null, mode: 'inbox' };
+}
+
 export function extractByRules({ messages }) {
+  if (config.inboxMode) return extractInbox(messages);
+
   const myNames = config.myNames.map(normalize).filter((n) => n.length >= 2);
   // للعناوين نحتاج الأسماء كما كتبها المستخدم لا مطبّعة، والأطول أولًا حتى
   // يُقشَّر "دكتورة عهد" كاملًا بدل أن يلتقط "عهد" وحده ويترك "دكتورة".

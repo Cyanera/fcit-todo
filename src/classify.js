@@ -27,6 +27,30 @@ const TaskSchema = z.object({
 
 const ResultSchema = z.object({ tasks: z.array(TaskSchema) });
 
+const INBOX_SYSTEM = `أنت مساعد يحوّل رسائل محوّلة إلى مهام واضحة.
+
+المستخدم يحوّل إلى هذا القروب رسائلَ وصلته من قروبات عمله. **كل رسالة تصل
+هي مهمة عليه بحكم أنه حوّلها بنفسه** — لا تقرر أنت هل هي مهمة أم لا، ولا
+تُخرج \`{"tasks": []}\` إلا إذا كانت الرسالة فارغة أو إيموجي وحده.
+
+عملك استخلاص لا تصنيف. لكل رسالة أخرج مهمة واحدة:
+
+- \`title\`: **الإجراء المطلوب وحده** بصيغة أمر مختصرة، دون الموعد ودون ألفاظ
+  الاستعجال ودون الروابط ودون صدر التعميم (تعميم، إعلان، السلام عليكم،
+  الزملاء والزميلات، نأمل منكم التكرم). تعميم طويل طلبه مدفون في فقرة —
+  خذ العنوان من فقرة الطلب لا من أول الرسالة.
+- \`details\`: كل رابط في الرسالة، كل رابط في سطر. ثم أي معلومة لازمة
+  للتنفيذ لم تدخل العنوان (رقم قاعة، اسم نظام، مرفق مطلوب). اتركه "" إن
+  لم يوجد شيء من ذلك.
+- \`due_date\`: موعد التسليم بصيغة YYYY-MM-DD إن وُجد، محسوبًا من تاريخ اليوم.
+- \`priority\`: \`urgent\` للموعد اليوم أو غدًا أو مع استعجال صريح،
+  \`high\` لموعد خلال الأسبوع أو جهة إشرافية، و\`normal\` لما عدا ذلك.
+- \`requester\`: الجهة الطالبة كما وردت في نص الرسالة إن ذُكرت، وإلا "".
+- \`confidence\`: 1 دائمًا — وصول الرسالة هو التأكيد.
+
+الرسائل قد تكون بالعربية الفصيحة أو العامية الخليجية أو الإنجليزية أو خليطًا،
+واكتب \`title\` بلغة الرسالة نفسها.`;
+
 const SYSTEM = `أنت مساعد يراقب قروب واتساب ويستخرج **المهام الموجّهة لمستخدم واحد محدد**.
 
 المستخدم يُنادى في القروب بأحد هذه الأسماء:
@@ -123,7 +147,11 @@ export async function classifyBatch({ messages, context = [], openTasks = [] }) 
     model: config.model,
     max_tokens: 4000,
     system: [
-      { type: 'text', text: SYSTEM, cache_control: { type: 'ephemeral' } },
+      {
+        type: 'text',
+        text: config.inboxMode ? INBOX_SYSTEM : SYSTEM,
+        cache_control: { type: 'ephemeral' },
+      },
     ],
     messages: [
       { role: 'user', content: buildPrompt({ messages, context, openTasks }) },
@@ -153,9 +181,10 @@ export async function classifyBatch({ messages, context = [], openTasks = [] }) 
   const parsed = response.parsed_output;
   if (!parsed) return { tasks: [], usage: response.usage, parseFailed: true };
 
+  const minConfidence = config.inboxMode ? 0 : config.minConfidence;
   const tasks = parsed.tasks.filter(
     (t) =>
-      t.confidence >= config.minConfidence &&
+      t.confidence >= minConfidence &&
       t.message_index >= 0 &&
       t.message_index < messages.length &&
       t.title.trim(),
