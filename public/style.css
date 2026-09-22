@@ -30,6 +30,38 @@
   font-display: swap;
 }
 
+/* ثمانية Serif Display — للعناوين، وهو ما صُمّم له */
+@font-face {
+  font-family: 'Thmanyah Serif';
+  src: url('fonts/thmanyahserifdisplay-Light.woff2') format('woff2');
+  font-weight: 300;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Thmanyah Serif';
+  src: url('fonts/thmanyahserifdisplay-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Thmanyah Serif';
+  src: url('fonts/thmanyahserifdisplay-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Thmanyah Serif';
+  src: url('fonts/thmanyahserifdisplay-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Thmanyah Serif';
+  src: url('fonts/thmanyahserifdisplay-Black.woff2') format('woff2');
+  font-weight: 900;
+  font-display: swap;
+}
+
 :root {
   --bg: #f6f5f2;
   --surface: #ffffff;
@@ -42,6 +74,8 @@
   --urgent: #c2372c;
   --high: #c9760f;
   --normal: #2f6fb0;
+  --font-ui: 'Thmanyah Sans', 'SF Arabic', system-ui, sans-serif;
+  --font-display: 'Thmanyah Serif', 'Thmanyah Sans', 'SF Arabic', serif;
   --radius: 14px;
   --shadow: 0 1px 2px rgb(28 26 23 / 6%), 0 8px 24px rgb(28 26 23 / 5%);
 }
@@ -89,7 +123,7 @@ body {
   padding: 0 16px 64px;
   background: var(--bg);
   color: var(--text);
-  font-family: 'Thmanyah Sans', 'SF Arabic', system-ui, sans-serif;
+  font-family: var(--font-ui);
   font-weight: 400;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
@@ -575,14 +609,17 @@ details.src blockquote {
 
 /* الخط يظهر بوضوح أكبر في العناوين: أسود عريض ومسافات مضبوطة */
 h1 {
-  font-size: 1.75rem;
+  font-family: var(--font-display);
+  font-size: 1.85rem;
   font-weight: 900;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.01em;
 }
 
 .title {
+  font-family: var(--font-display);
   font-weight: 700;
-  letter-spacing: -0.005em;
+  font-size: 1.12rem;
+  letter-spacing: 0;
 }
 
 .tab.is-active {
