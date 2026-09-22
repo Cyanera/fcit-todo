@@ -118,8 +118,12 @@ export class WhatsAppClient extends EventEmitter {
 
     // يُركَّب قبل أي مستمع أحداث: من هذه اللحظة لا يمكن لأي شيفرة
     // — حالية أو مستقبلية — أن ترسل إلى قروب أو إلى أي شخص آخر.
-    installSendGuard(this.sock, () => this.selfJid);
-    console.log('🔒 حارس الإرسال مفعّل: القروبات والأشخاص محظورون، والمسموح محادثتك مع نفسك فقط.');
+    installSendGuard(this.sock, () => this.selfJid, config.digestGroupJid || null);
+    console.log(
+      config.digestGroupJid
+        ? `🔒 حارس الإرسال مفعّل: المسموح محادثتك مع نفسك + قروب واحد (${config.digestGroupJid}). كل ما عداه ممنوع.`
+        : '🔒 حارس الإرسال مفعّل: القروبات والأشخاص محظورون، والمسموح محادثتك مع نفسك فقط.',
+    );
 
     this.sock.ev.on('creds.update', saveCreds);
     this.sock.ev.on('connection.update', (u) => this.#onConnection(u));
@@ -245,6 +249,13 @@ export class WhatsAppClient extends EventEmitter {
       name: g.subject,
       participants: g.participants?.length ?? 0,
     }));
+  }
+
+  /** يرسل الملخص إلى القروب المصرّح به، أو لمحادثتك مع نفسك إن لم يُحدَّد. */
+  async sendDigest(text) {
+    const target = config.digestGroupJid || this.selfJid;
+    if (!target) throw new Error('غير متصل بواتساب بعد');
+    await this.sock.sendMessage(target, { text });
   }
 
   /** يرسل رسالة إلى محادثة "رسالة لنفسي". */

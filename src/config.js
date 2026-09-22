@@ -60,6 +60,14 @@ export const config = {
   minConfidence: Number(process.env.MIN_CONFIDENCE || 0.6),
 
   notifyUrgent: bool(process.env.NOTIFY_URGENT, true),
+
+  /**
+   * القروب الوحيد المصرّح للبوت بالإرسال إليه — للملخص اليومي.
+   * اتركه فاضيًا فيبقى المنع تامًّا ويصل الملخص لـ«رسالة لنفسي».
+   * يجب أن يُكتب صراحةً: لا يُستنتج من GROUP_JIDS حتى لا يتسرّب
+   * الإرسال إلى قروب عمل بمجرد إضافته للمراقبة.
+   */
+  digestGroupJid: (process.env.DIGEST_GROUP_JID || '').trim(),
   dailyDigestAt: (process.env.DAILY_DIGEST_AT || '').trim(),
 
   tz: process.env.TZ || 'Asia/Riyadh',

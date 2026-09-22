@@ -230,6 +230,33 @@ export class Pipeline {
     }
   }
 
+  /**
+   * ملخص الصباح: المهام المفتوحة غير الدورية.
+   * الدورية مستثناة لأنها جدول ثابت تعرفه المستخدمة سلفًا، وإدراجه كل
+   * صباح يُغرق الملخص بما لا جديد فيه.
+   */
+  #digestBody() {
+    const open = store.openTasksForDigest();
+    if (!open.length) return null;
+
+    const now = today();
+    const overdue = open.filter((t) => t.due_date && t.due_date < now);
+    const dueToday = open.filter((t) => t.due_date === now);
+    const rest = open.filter((t) => !overdue.includes(t) && !dueToday.includes(t));
+
+    const line = (t) => {
+      const due = t.due_date ? ` — ${t.due_date}` : t.due_text ? ` — ${t.due_text}` : '';
+      return `• ${t.title}${due}`;
+    };
+
+    const parts = [];
+    if (overdue.length) parts.push(`⚠️ متأخرة (${overdue.length})\n${overdue.map(line).join('\n')}`);
+    if (dueToday.length) parts.push(`🔴 اليوم (${dueToday.length})\n${dueToday.map(line).join('\n')}`);
+    if (rest.length) parts.push(`📋 قادمة (${rest.length})\n${rest.map(line).join('\n')}`);
+
+    return `☀️ مهام غير منجزة — ${now}\n\n${parts.join('\n\n')}\n\nاللوحة: http://localhost:${config.port}`;
+  }
+
   /** ملخص يومي في الوقت المحدد بـ DAILY_DIGEST_AT. */
   startDigestTimer() {
     if (!/^\d{2}:\d{2}$/.test(config.dailyDigestAt)) return;
@@ -239,21 +266,17 @@ export class Pipeline {
       if (store.getMeta('last_digest') === today()) return;
       store.setMeta('last_digest', today());
 
-      const open = store.openTasksForDigest();
-      const body = open.length
-        ? open
-            .map((t, i) => {
-              const due = t.due_date ? ` (${t.due_date})` : '';
-              return `${i + 1}. ${PRIORITY_LABEL[t.priority]} ${t.title}${due}`;
-            })
-            .join('\n')
-        : 'ما فيه مهام مفتوحة 🎉';
+      const body = this.#digestBody();
+      if (!body) {
+        console.log('📬 لا مهام مفتوحة — لم يُرسل ملخص.');
+        return;
+      }
 
       try {
-        await this.wa.sendToSelf(
-          `☀️ مهام اليوم — ${today()}\n\n${body}\n\nاللوحة: http://localhost:${config.port}`,
+        await this.wa.sendDigest(body);
+        console.log(
+          `📬 أُرسل ملخص الصباح إلى ${config.digestGroupJid || 'محادثتك مع نفسك'}.`,
         );
-        console.log('📬 أُرسل الملخص اليومي.');
       } catch (err) {
         console.error('❌ تعذّر إرسال الملخص:', err.message);
       }

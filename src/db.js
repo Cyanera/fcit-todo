@@ -128,8 +128,11 @@ const stmts = {
   unnotifiedUrgent: db.prepare(`
     SELECT * FROM tasks WHERE status = 'open' AND notified = 0 AND priority IN ('urgent','high')`),
   markNotified: db.prepare(`UPDATE tasks SET notified = 1 WHERE id = ?`),
+  // المهام الدورية مستثناة: جدول ثابت تعرفه المستخدمة سلفًا، وإدراجه
+  // كل صباح يُغرق الملخص بما لا جديد فيه
   openTasksForDigest: db.prepare(`
-    SELECT * FROM tasks WHERE status = 'open'
+    SELECT * FROM tasks
+    WHERE status = 'open' AND source != 'recurring'
     ORDER BY CASE priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 ELSE 2 END,
              CASE WHEN due_date IS NULL THEN 1 ELSE 0 END, due_date ASC`),
   counts: db.prepare(`
