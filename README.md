@@ -172,45 +172,32 @@ npm start
 
 ## التشغيل الدائم على الماك
 
-عشان يبقى شغالًا بعد إغلاق الطرفية، استخدم `launchd`. أنشئ
-`~/Library/LaunchAgents/com.local.whatsapp-tasks.plist`:
-
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
-  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>Label</key><string>com.local.whatsapp-tasks</string>
-  <key>ProgramArguments</key>
-  <array>
-    <string>/usr/local/bin/node</string>
-    <string>/المسار/الكامل/whatsapp-tasks/src/index.js</string>
-  </array>
-  <key>WorkingDirectory</key><string>/المسار/الكامل/whatsapp-tasks</string>
-  <key>RunAtLoad</key><true/>
-  <key>KeepAlive</key><true/>
-  <key>StandardOutPath</key><string>/المسار/الكامل/whatsapp-tasks/data/run.log</string>
-  <key>StandardErrorPath</key><string>/المسار/الكامل/whatsapp-tasks/data/run.err</string>
-</dict>
-</plist>
-```
-
-ثم:
-
 ```bash
-launchctl load ~/Library/LaunchAgents/com.local.whatsapp-tasks.plist
+npm run service:install
 ```
 
-استبدل `/usr/local/bin/node` بمخرج `which node` عندك.
+يولّد إعداد `launchd` من مسارَي node والمشروع الفعليين، ويشغّل البوت في الخلفية
+مع كل إقلاع للماك — فلا تحتاج طرفية مفتوحة.
 
-> **لا تضع ملفات السجل في `/tmp`** — أي مستخدم على الجهاز يقرؤها. وضعها داخل
-> `data/` يبقيها ضمن صلاحيات حسابك ومستثناة من Git.
+| الأمر | الوظيفة |
+|---|---|
+| `npm run service:install` | التثبيت والتشغيل |
+| `npm run service:status` | هل يعمل؟ |
+| `npm run service:logs` | آخر السجل |
+| `npm run service:restart` | إعادة التشغيل بعد تعديل الشيفرة |
+| `npm run service:uninstall` | الإلغاء |
 
-> **انتبه:** الماك لما ينام ينقطع الاتصال بواتساب وتفوتك رسائل تلك الفترة.
-> لو تبغى تغطية كاملة، شغّل `caffeinate -s` أو انقل المشروع لسيرفر صغير.
+السجل في `data/run.log` داخل المشروع لا في `/tmp` — قد يحمل نصوص رسائلك،
+و`/tmp` يقرؤه أي مستخدم على الجهاز.
 
----
+> **بعد ترقية node عبر nvm** أعد `npm run service:install`: مسار node يحمل رقم
+> الإصدار، فيتغيّر مع الترقية ويتوقف الإقلاع.
+
+> **بعد تعديل الشيفرة** شغّل `npm run service:restart` — Node يحمّل الوحدات مرة
+> واحدة، فالتعديل لا يسري قبل إعادة التشغيل.
+
+> **انتبه:** الماك لما ينام ينقطع الاتصال بواتساب وتفوتك رسائل تلك الفترة،
+> ويستأنف عند الاستيقاظ. لتغطية كاملة شغّل `caffeinate -s` أو انقل المشروع لسيرفر.
 
 ## ملاحظات مهمة
 
@@ -338,6 +325,7 @@ thmanyahsans-{Light,Regular,Medium,Bold,Black}.woff2
 | `src/lock.js` | قفل يمنع تشغيل نسختين معًا |
 | `src/freshness.js` | ينبّه إذا تغيّرت الشيفرة والبوت يعمل |
 | `src/recurring.js` | توليد مهام التحضير من الجدول الأسبوعي |
+| `scripts/service.sh` | تثبيت البوت خدمةً تعمل مع إقلاع الماك |
 | `src/reprocess.js` | إعادة استخلاص المهام من رسائل محفوظة |
 | `test/inbox.test.mjs` | اختبارات وضع صندوق الوارد |
 | `test/` | اختبارات القواعد والحارس |

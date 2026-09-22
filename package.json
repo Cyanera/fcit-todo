@@ -9,7 +9,12 @@
     "login": "node src/login.js",
     "groups": "node src/groups.js",
     "test": "node --test \"test/**/*.test.mjs\"",
-    "reprocess": "node src/reprocess.js"
+    "reprocess": "node src/reprocess.js",
+    "service:install": "bash scripts/service.sh install",
+    "service:uninstall": "bash scripts/service.sh uninstall",
+    "service:status": "bash scripts/service.sh status",
+    "service:logs": "bash scripts/service.sh logs",
+    "service:restart": "bash scripts/service.sh restart"
   },
   "engines": {
     "node": ">=20"
