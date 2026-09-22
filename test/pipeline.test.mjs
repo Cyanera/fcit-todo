@@ -48,3 +48,34 @@ test('يفصل الدفعة حسب القروب فتُنسب كل مهمة لق�
   // ولا مهمة بلا قروب أو بقروب خاطئ
   for (const t of tasks) assert.ok(t.chat_jid, `مهمة بلا قروب: ${t.title}`);
 });
+
+test('المهمة المحذوفة لا تعود عند إعادة المعالجة', () => {
+  const id = store.addTask({
+    chat_jid: 'Z@g.us', chat_name: 'قروب', title: 'ارفع التقرير الشهري',
+    source_text: 'ارفع التقرير الشهري', source_ts: Date.now(),
+  }, { skipDedup: true });
+
+  store.deleteTask(id);
+  assert.equal(store.listTasks('all').filter((t) => t.id === id).length, 0, 'حُذفت فعلًا');
+
+  // نفس العنوان مرة أخرى — كما يفعل reprocess
+  const again = store.addTask({
+    chat_jid: 'Z@g.us', chat_name: 'قروب', title: 'ارفع التقرير الشهري',
+    source_text: 'ارفع التقرير الشهري', source_ts: Date.now(),
+  });
+  assert.equal(again, null, 'الشاهد يمنع عودتها');
+});
+
+test('المهمة المنجزة لا تعود مفتوحة عند إعادة المعالجة', () => {
+  const id = store.addTask({
+    chat_jid: 'Y@g.us', chat_name: 'قروب', title: 'سلّم خطة المقرر',
+    source_text: 'سلّم خطة المقرر', source_ts: Date.now(),
+  }, { skipDedup: true });
+
+  store.setStatus(id, 'done');
+  const again = store.addTask({
+    chat_jid: 'Y@g.us', chat_name: 'قروب', title: 'سلّم خطة المقرر',
+    source_text: 'سلّم خطة المقرر', source_ts: Date.now(),
+  });
+  assert.equal(again, null, 'منع التكرار يشمل المنجزة');
+});

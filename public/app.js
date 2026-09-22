@@ -79,6 +79,30 @@ function relativeTime(ts) {
   return days === 1 ? 'أمس' : `قبل ${days} يوم`;
 }
 
+/** نموذج تعديل داخل البطاقة، مملوء بقيم المهمة الحالية. */
+function editForm(t) {
+  const opt = (v, label) =>
+    `<option value="${v}" ${t.priority === v ? 'selected' : ''}>${label}</option>`;
+  return `
+    <form class="edit-form" data-edit="${t.id}">
+      <input name="title" type="text" required maxlength="200" value="${esc(t.title)}" />
+      <textarea name="details" rows="2" maxlength="1000"
+        placeholder="تفاصيل وروابط (كل رابط في سطر)">${esc(t.details ?? '')}</textarea>
+      <div class="add-row">
+        <label><span>الموعد</span>
+          <input name="due_date" type="date" value="${esc(t.due_date ?? '')}" /></label>
+        <label><span>الأولوية</span>
+          <select name="priority">
+            ${opt('normal', 'عادي')}${opt('high', 'مهم')}${opt('urgent', 'عاجل')}
+          </select></label>
+        <div class="add-actions">
+          <button type="button" class="btn" data-act="cancel-edit">إلغاء</button>
+          <button type="submit" class="btn solid">حفظ</button>
+        </div>
+      </div>
+    </form>`;
+}
+
 /** يحوّل الروابط في الوصف إلى وصلات قابلة للنقر — بعد الهروب دائمًا. */
 function linkify(text) {
   return esc(text).replace(
@@ -110,9 +134,11 @@ function card(t) {
         <h2 class="title">${esc(t.title)}</h2>
         <div class="actions">
           <button class="btn primary" data-act="toggle">${t.status === 'open' ? '✓ تم' : '↺ رجّعها'}</button>
+          <button class="btn" data-act="edit">✎ تعديل</button>
           <button class="btn danger" data-act="delete">حذف</button>
         </div>
       </div>
+      ${editForm(t)}
       ${t.details ? `<p class="details">${linkify(t.details)}</p>` : ''}
       <div class="meta">${chips.join('')}</div>
       ${
@@ -254,6 +280,17 @@ listEl.addEventListener('click', async (e) => {
   const id = cardEl.dataset.id;
   const act = btn.dataset.act;
 
+  if (act === 'edit') {
+    cardEl.classList.add('is-editing');
+    cardEl.querySelector('.edit-form input[name="title"]').focus();
+    return;
+  }
+
+  if (act === 'cancel-edit') {
+    cardEl.classList.remove('is-editing');
+    return;
+  }
+
   if (act === 'delete') {
     if (!confirm('تحذف هذه المهمة نهائيًا؟')) return;
     await fetch(`/api/tasks/${id}`, { method: 'DELETE' });
@@ -330,6 +367,31 @@ addForm.addEventListener('submit', async (e) => {
   } catch {
     addError.textContent = 'الخادم غير متاح';
     addError.hidden = false;
+  }
+});
+
+listEl.addEventListener('submit', async (e) => {
+  const form = e.target.closest('[data-edit]');
+  if (!form) return;
+  e.preventDefault();
+
+  const data = Object.fromEntries(new FormData(form));
+  const res = await fetch(`/api/tasks/${form.dataset.edit}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const { error } = await res.json().catch(() => ({}));
+    alert(error || 'تعذّر الحفظ');
+    return;
+  }
+  refresh();
+});
+
+listEl.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && e.target.closest('[data-edit]')) {
+    e.target.closest('.card').classList.remove('is-editing');
   }
 });
 

@@ -43,6 +43,15 @@ CREATE TABLE IF NOT EXISTS tasks (
 CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
 CREATE INDEX IF NOT EXISTS idx_tasks_norm ON tasks(norm_title);
 
+-- شاهد على مهمة حُذفت: يمنع عودتها عند إعادة المعالجة.
+-- نحفظ العنوان المطبّع فقط لا نص الرسالة.
+CREATE TABLE IF NOT EXISTS dismissed (
+  norm_title TEXT NOT NULL,
+  chat_jid   TEXT,
+  deleted_at INTEGER NOT NULL,
+  PRIMARY KEY (norm_title, chat_jid)
+);
+
 CREATE TABLE IF NOT EXISTS meta (
   key   TEXT PRIMARY KEY,
   value TEXT
@@ -87,10 +96,17 @@ const stmts = {
     VALUES (@message_id, @chat_jid, @chat_name, @title, @norm_title, @details, @requester,
             @due_date, @due_text, @priority, @confidence, @source_text, @source_ts,
             @created_at, @source)`),
+  // أي حالة لا المفتوحة وحدها: المهمة المنجزة يجب ألا تعود مفتوحة
   findDuplicate: db.prepare(`
     SELECT id FROM tasks
-    WHERE norm_title = ? AND status = 'open' AND created_at > ?
+    WHERE norm_title = ? AND created_at > ?
     LIMIT 1`),
+  findDismissed: db.prepare(`
+    SELECT 1 FROM dismissed WHERE norm_title = ? AND deleted_at > ? LIMIT 1`),
+  dismiss: db.prepare(`
+    INSERT INTO dismissed (norm_title, chat_jid, deleted_at) VALUES (?, ?, ?)
+    ON CONFLICT(norm_title, chat_jid) DO UPDATE SET deleted_at = excluded.deleted_at`),
+  getTaskRow: db.prepare(`SELECT norm_title, chat_jid FROM tasks WHERE id = ?`),
   listTasks: db.prepare(`
     SELECT * FROM tasks
     WHERE (@status = 'all' OR status = @status)
@@ -149,7 +165,11 @@ export const store = {
   addTask(task, { skipDedup = false } = {}) {
     const norm = normalize(task.title);
     const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-    if (!skipDedup && stmts.findDuplicate.get(norm, weekAgo)) return null;
+    if (!skipDedup) {
+      if (stmts.findDuplicate.get(norm, weekAgo)) return null;
+      // حذفتِها عمدًا — لا تعود عند إعادة المعالجة
+      if (stmts.findDismissed.get(norm, weekAgo)) return null;
+    }
     const info = stmts.insertTask.run({
       message_id: null,
       chat_jid: null,
@@ -173,7 +193,15 @@ export const store = {
   listTasks: (status = 'open') => stmts.listTasks.all({ status }),
   setStatus: (id, status) =>
     stmts.setStatus.run(status, status === 'done' ? Date.now() : null, id),
-  deleteTask: (id) => stmts.deleteTask.run(id),
+  /**
+   * يحذف المهمة نهائيًا من الجدول، ويترك شاهدًا بعنوانها المطبّع حتى لا
+   * تعود عند إعادة المعالجة — فالرسالة الأصلية تبقى محفوظة.
+   */
+  deleteTask(id) {
+    const row = stmts.getTaskRow.get(id);
+    if (row) stmts.dismiss.run(row.norm_title, row.chat_jid ?? '', Date.now());
+    return stmts.deleteTask.run(id);
+  },
   updateTask: (t) => stmts.updateTask.run(t),
   unnotifiedUrgent: () => stmts.unnotifiedUrgent.all(),
   markNotified: (id) => stmts.markNotified.run(id),

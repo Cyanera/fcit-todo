@@ -688,3 +688,52 @@ details.src blockquote {
 .details a:hover {
   border-bottom-color: var(--accent);
 }
+
+/* ── نموذج التعديل داخل البطاقة ─────────────────────────────── */
+.edit-form {
+  display: none;
+  flex-direction: column;
+  gap: 9px;
+  margin-top: 10px;
+}
+
+.card.is-editing .edit-form {
+  display: flex;
+}
+
+/* أثناء التعديل نُخفي العرض العادي فلا يزدحم */
+.card.is-editing .details,
+.card.is-editing .meta,
+.card.is-editing details.src,
+.card.is-editing .title {
+  display: none;
+}
+
+.edit-form input[type='text'],
+.edit-form textarea,
+.edit-form input[type='date'],
+.edit-form select {
+  font: inherit;
+  width: 100%;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  color: var(--text);
+  padding: 9px 12px;
+}
+
+.edit-form input[name='title'] {
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.edit-form textarea {
+  resize: vertical;
+  min-height: 46px;
+}
+
+.edit-form :is(input, textarea, select):focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+}
