@@ -261,15 +261,17 @@ grep -rn "sendMessage" src/
 
 المهام اللي ثقتها أقل من 75٪ تظهر في اللوحة بوسم "راجعها".
 
-**الخطوط.** اللوحة تستخدم عائلة ثمانية بوجهين: **Serif Display** للعناوين —
-وهو ما صُمّم له — و**Sans** لنص الواجهة والشرائح والأزرار. كل وجه بخمسة أوزان.
+**الخطوط.** اللوحة تستخدم عائلة ثمانية بوجهين، كلٌّ في موضعه المصمَّم له:
+**Serif Display** للترويسة وعناوين المهام، و**Serif Text** لنص الواجهة والشرائح
+والأزرار. كل وجه بخمسة أوزان، وSans يبقى احتياطيًا في سلسلة الخطوط.
 
 ملفات الخط **غير مرفوعة** للمستودع لأن ترخيص إعادة التوزيع يخص ثمانية — انسخها
 محليًا إلى `public/fonts/`:
 
 ```
-thmanyahsans-{Light,Regular,Medium,Bold,Black}.woff2
 thmanyahserifdisplay-{Light,Regular,Medium,Bold,Black}.woff2
+thmanyahseriftext-{Light,Regular,Medium,Bold,Black}.woff2
+thmanyahsans-{Light,Regular,Medium,Bold,Black}.woff2
 ```
 
 بدونها تشتغل اللوحة بخط النظام تلقائيًا دون أي خطأ.

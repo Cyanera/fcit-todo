@@ -62,6 +62,38 @@
   font-display: swap;
 }
 
+/* ثمانية Serif Text — لنص الواجهة، مضبوط لأحجام القراءة */
+@font-face {
+  font-family: 'Thmanyah Text';
+  src: url('fonts/thmanyahseriftext-Light.woff2') format('woff2');
+  font-weight: 300;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Thmanyah Text';
+  src: url('fonts/thmanyahseriftext-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Thmanyah Text';
+  src: url('fonts/thmanyahseriftext-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Thmanyah Text';
+  src: url('fonts/thmanyahseriftext-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Thmanyah Text';
+  src: url('fonts/thmanyahseriftext-Black.woff2') format('woff2');
+  font-weight: 900;
+  font-display: swap;
+}
+
 :root {
   --bg: #f6f5f2;
   --surface: #ffffff;
@@ -74,7 +106,7 @@
   --urgent: #c2372c;
   --high: #c9760f;
   --normal: #2f6fb0;
-  --font-ui: 'Thmanyah Sans', 'SF Arabic', system-ui, sans-serif;
+  --font-ui: 'Thmanyah Text', 'Thmanyah Sans', 'SF Arabic', serif;
   --font-display: 'Thmanyah Serif', 'Thmanyah Sans', 'SF Arabic', serif;
   --radius: 14px;
   --shadow: 0 1px 2px rgb(28 26 23 / 6%), 0 8px 24px rgb(28 26 23 / 5%);
@@ -610,9 +642,10 @@ details.src blockquote {
 /* الخط يظهر بوضوح أكبر في العناوين: أسود عريض ومسافات مضبوطة */
 h1 {
   font-family: var(--font-display);
-  font-size: 1.85rem;
+  font-size: 2rem;
   font-weight: 900;
-  letter-spacing: -0.01em;
+  letter-spacing: 0;
+  line-height: 1.35; /* التطويل يحتاج مدى رأسيًا أوسع */
 }
 
 .title {
