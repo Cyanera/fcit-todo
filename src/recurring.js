@@ -82,13 +82,25 @@ export function syncRecurring(schedule = loadSchedule(), from = today()) {
   return created;
 }
 
-/** يبدأ المزامنة الدورية. الفحص كل ساعة يكفي لجدول يومي. */
+/**
+ * يبدأ المزامنة الدورية. الفحص كل ساعة يكفي لجدول يومي.
+ *
+ * يُعاد قراءة الجدول في كل دورة لا مرة واحدة عند الإقلاع، فتعديل
+ * `recurring.json` يسري خلال ساعة بلا إعادة تشغيل. ولو فسد الملف
+ * نُبقي آخر جدول صالح بدل أن تتوقف المهام.
+ */
 export function startRecurring(intervalMs = 60 * 60 * 1000) {
-  const schedule = loadSchedule();
-  if (!schedule) return null;
+  let lastGood = loadSchedule();
+  if (!lastGood) return null;
 
   const run = () => {
-    const n = syncRecurring(schedule);
+    const current = loadSchedule() ?? lastGood;
+    if (current !== lastGood && JSON.stringify(current) !== JSON.stringify(lastGood)) {
+      console.log('🔁 تغيّر الجدول الأسبوعي — طُبّق التعديل.');
+    }
+    lastGood = current;
+
+    const n = syncRecurring(current);
     if (n) console.log(`🔁 أُضيفت ${n} مهمة دورية.`);
   };
 
